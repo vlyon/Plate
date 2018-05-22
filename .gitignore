@@ -1,0 +1,8 @@
+/Plate-*
+/.build
+/_build*
+/blib
+/Build
+/cover_db
+/MYMETA.*
+/.prove
