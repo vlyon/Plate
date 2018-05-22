@@ -194,11 +194,11 @@ Vernon Lyon `<vlyon@cpan.org>`
 
 # BUGS
 
-Please report any bugs or feature requests on [GitHub issues](https://github.com/vlyon/plate/issues).
+Please report any bugs or feature requests on [GitHub issues](https://github.com/vlyon/Plate/issues).
 
 # SOURCE
 
-The source code is hosted on [GitHub](https://github.com/vlyon/plate).
+The source code is hosted on [GitHub](https://github.com/vlyon/Plate).
 Feel free to fork the repository and submit pull requests!
 
 # SUPPORT

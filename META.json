@@ -35,13 +35,13 @@
    "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
-         "web" : "https://github.com/vlyon/plate/issues"
+         "web" : "https://github.com/vlyon/Plate/issues"
       },
-      "homepage" : "https://github.com/vlyon/plate",
+      "homepage" : "https://github.com/vlyon/Plate",
       "repository" : {
          "type" : "git",
-         "url" : "https://github.com/vlyon/plate.git",
-         "web" : "https://github.com/vlyon/plate"
+         "url" : "https://github.com/vlyon/Plate.git",
+         "web" : "https://github.com/vlyon/Plate"
       }
    },
    "version" : "0.1",

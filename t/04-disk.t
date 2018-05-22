@@ -1,7 +1,14 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 27;
+use Test::More tests => 28;
+
+BEGIN {
+    if ($ENV{AUTHOR_TESTING}) {
+        require Devel::Cover;
+        import Devel::Cover -db => 'cover_db', -coverage => qw(statement subroutine), -silent => 1, '+ignore' => qr'^t/';
+    }
+}
 
 my $warned;
 $SIG{__WARN__} = sub {
@@ -100,10 +107,15 @@ is $plate->serve('utf8'),
 'ῌȇɭɭо Ẇöŗld‼',
 'Render as UTF-8';
 
-my $latin9 = new Plate path => 't/data', encoding => 'latin1';
-is $latin9->serve('utf8'),
+$plate = new Plate path => 't/data', encoding => 'latin1';
+is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render as Latin-1';
+
+$plate = new Plate path => 't/data', io_layers => ':raw';
+is $plate->serve('utf8'),
+"á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
+'Render as binary';
 
 $plate = new Plate path => 't/data', cache_code => 1, static => 1;
 

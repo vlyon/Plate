@@ -1,7 +1,14 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 17;
+
+BEGIN {
+    if ($ENV{AUTHOR_TESTING}) {
+        require Devel::Cover;
+        import Devel::Cover -db => 'cover_db', -coverage => qw(statement subroutine), -silent => 1, '+ignore' => qr'^t/';
+    }
+}
 
 use Plate;
 
@@ -51,10 +58,14 @@ is $plate->serve(\"<one>\\\n<two>\n<three>\\\n"),
 "<one><two>\n<three>",
 'Remove escaped newlines';
 
-ok $plate->global(hello => 'Hello'), 'Set a global scalar';
-is $plate->serve(\"% \$hello .= ' World';\n<% \$hello %>"),
-'Hello World',
-'Use a global scalar';
+$plate->set(globals => {
+        var1 => 'String',
+        var2 => ['Array'],
+        var3 => {a => 'Hash'},
+    });
+is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %>'),
+'String Array Hash',
+'Set & use globals';
 
 ok $plate->global(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a global function';
 is $plate->serve(\'<% trim "  Hello World\n" %>'),

@@ -3,6 +3,13 @@ use 5.020;
 use warnings;
 use Test::More tests => 10;
 
+BEGIN {
+    if ($ENV{AUTHOR_TESTING}) {
+        require Devel::Cover;
+        import Devel::Cover -db => 'cover_db', -coverage => qw(statement subroutine), -silent => 1, '+ignore' => qr'^t/';
+    }
+}
+
 use Plate;
 
 my $warned;

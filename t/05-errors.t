@@ -1,7 +1,14 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 17;
+use Test::More tests => 18;
+
+BEGIN {
+    if ($ENV{AUTHOR_TESTING}) {
+        require Devel::Cover;
+        import Devel::Cover -db => 'cover_db', -coverage => qw(statement subroutine), -silent => 1, '+ignore' => qr'^t/';
+    }
+}
 
 use Plate;
 
@@ -74,5 +81,9 @@ $plate->define(err => <<'PLATE');
 PLATE
 is eval { $plate->serve_with(\' ', 'err') } // $@,
 qq'Call depth limit exceeded while calling "err" at err line 1.\n', 'Error on deep recursion';
+
+$plate->set(path => undef);
+like eval { $plate->serve('test') } // $@,
+qr"^Plate template 'test' does not exist ", 'Error on undefined path & cache_path';
 
 ok !$warned, 'No warnings';
