@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 28;
+use Test::More tests => 32;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -53,10 +53,20 @@ this &amp; that
 this &amp;amp; that
 OUTPUT
 
-my $plate = new Plate path => 't/data', cache_path => 't/data';
+my $plate = new Plate path => 't', cache_path => 't/tmp_dir', umask => 027;
 
-ok $plate->does_exist('test'), "Plate 'test' does exist";
-ok $plate->can_serve('test'), "Plate 'test' can be served";
+ok -d 't/tmp_dir', 'Created cache_path directory';
+is sprintf('%04o', 0777 & (stat _)[2]), '0750', 'Created cache_path with umask permissions';
+
+ok $plate->does_exist('data/test'), "Plate 'data/test' does exist";
+ok $plate->can_serve('data/test'), "Plate 'data/test' can be served";
+
+ok -d 't/tmp_dir/data', 'Created cache file path';
+ok -f 't/tmp_dir/data/test.pl', 'Created cache file';
+unlink 't/tmp_dir/data/test.pl' or diag "Can't delete t/tmp_dir/data/test.pl: $!";
+rmdir or diag "Can't delete $_: $!" for qw(t/tmp_dir/data t/tmp_dir);
+
+$plate = new Plate path => 't/data', cache_path => 't/data';
 
 ok !$plate->does_exist('missing'), "Plate 'missing' doesn't exist";
 ok !$plate->can_serve('missing'), "Plate 'missing' can't be served";

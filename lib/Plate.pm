@@ -166,10 +166,9 @@ sub _read {
 }
 sub _write {
     my $umask = umask $$Plate::_s{umask};
-    open my $fh, '>:utf8', $_[0]
+    (open(my $fh, '>:utf8', $_[0]), umask $umask)[0]
         or croak "Can't write $_[0]: $!";
     print $fh $_[1];
-    umask $umask;
 }
 sub _eval {
     package # Dont index on PAUSE
@@ -184,14 +183,18 @@ sub _compile {
         or croak $@.'Plate precompilation failed';
     $pl = _parse $pl, $re_run, $file, '';
     $line .= "no strict 'vars';" if $$Plate::_s{alias_args};
-    _write $_[2], "use 5.020;use warnings;use utf8;\n".$line.$pl if length $_[2];
+    _write $_[2], "use 5.020;use warnings;use utf8;\n".$line.$pl if defined $_[2];
     _eval $line.$pl
         or croak $@.'Plate compilation failed';
 }
 sub _make_cache_dir {
     my($dir, @mkdir) = $_[1];
     unshift @mkdir, $_[0]{cache_path}.$dir until $dir !~ s|/[^/]*$|| or -d $_[0]{cache_path}.$dir;
-    mkdir $_, $_[0]{umask} or croak "Can't create cache directory $_: $!" for @mkdir;
+    return unless @mkdir;
+    my $umask = umask $_[0]{umask};
+    mkdir $_ or umask $umask, croak "Can't create cache directory $_: $!" for @mkdir;
+    umask $umask;
+    return;
 }
 sub _plate_file {
     defined $_[0]{path} ? $_[0]{path}.$_[1].$_[0]{suffix} : undef;
@@ -202,7 +205,7 @@ sub _cache_file {
 sub _load {
     my $plate = $_[0]->_plate_file($_[1]);
     my $cache = $_[0]->_cache_file($_[1]);
-    if ($cache) {
+    if (defined $cache) {
         if (-f $cache and ($_[0]{static} or ($_[0]{mod}{$_[1]} // (stat _)[9]) >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9]))) {
             return do { package # Dont index on PAUSE
                 Plate::Template;
@@ -550,7 +553,9 @@ sub set {
         if (-d $dir) {
             -w _ or croak "Cache directory $dir is not writeable";
         } else {
-            mkdir $dir, $$self{umask} or croak "Can't create cache directory $dir: $!";
+            my $umask = umask $$self{umask};
+            (mkdir($dir), umask $umask)[0]
+                or croak "Can't create cache directory $dir: $!";
         }
     }
 }

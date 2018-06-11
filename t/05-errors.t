@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 20;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -70,19 +70,24 @@ PLATE
 ok !eval { $plate->serve('err') }, "Can't use precompiled %def blocks during runtime";
 is $@, "Can't read .missing.plate: No such file or directory at err line 4.\n", 'Expected error';
 
-ok !eval { $plate->define(err => <<'PLATE');
-<& bad |filter &>
-PLATE
-}, 'Invalid filter';
+ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
 
-$plate->define(err => <<'PLATE');
-<& err &>
-PLATE
+$plate->define(err => '<& err &>');
 is eval { $plate->serve_with(\' ', 'err') } // $@,
 qq'Call depth limit exceeded while calling "err" at err line 1.\n', 'Error on deep recursion';
 
-$plate->set(path => undef);
+$plate->set(path => 't', cache_path => 't/tmp_dir', umask => 027);
+rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
+like eval { $plate->serve('data/faulty') } // $@,
+qr"^Can't create cache directory ./t/tmp_dir/data: No such file or directory", 'Error creating cache directory';
+
+$plate->set(path => 't/data');
+rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
+like eval { $plate->serve('faulty') } // $@,
+qr"^Can't write ./t/tmp_dir/faulty.pl: No such file or directory", 'Error writing cache file';
+
+$plate->set(path => undef, cache_path => undef);
 like eval { $plate->serve('test') } // $@,
 qr"^Plate template 'test' does not exist ", 'Error on undefined path & cache_path';
 
