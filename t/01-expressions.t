@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -62,15 +62,21 @@ $plate->set(globals => {
         var1 => 'String',
         var2 => ['Array'],
         var3 => {a => 'Hash'},
+        var4 => $plate,
     });
-is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %>'),
-'String Array Hash',
+is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %> <% ref $var4 %>'),
+'String Array Hash Plate',
 'Set & use globals';
 
 ok $plate->global(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a global function';
 is $plate->serve(\'<% trim "  Hello World\n" %>'),
 'Hello World',
 'Call a global function';
+
+$plate->set(globals => undef);
+is $plate->serve(\'<% $var1 %>'),
+'',
+'Remove all globals';
 
 $plate->filter(upper => sub { uc $_[0] });
 is $plate->serve(\'<% "Hello World" |upper %>'),

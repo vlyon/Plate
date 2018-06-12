@@ -158,6 +158,7 @@ sub _parse {
         }
     }
 }
+
 sub _read {
     open my $fh, '<'.$_[0]{io_layers}, $_[1]
         or croak "Can't read $_[1]: $!";
@@ -530,10 +531,13 @@ sub set {
         } elsif ($k =~ /^(?:(?:cache_)?suffix|io_layers)$/) {
             $v //= '';
         } elsif ($k eq 'filters' or $k eq 'globals') {
-            $v //= {};
-            ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
             my $method = substr $k, 0, 6;
-            $self->$method($_ => $$v{$_}) for keys %$v;
+            if (defined $v) {
+                ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
+                $self->$method($_ => $$v{$_}) for keys %$v;
+            } else {
+                $self->$method($_ => undef) for keys %{$$self{globals}};
+            }
             next;
         } elsif ($k !~ /^(?:alias_args|auto_filter|cache_code|keep_undef|max_call_depth|static|umask)$/) {
             croak "Invalid setting '$k'";

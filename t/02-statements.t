@@ -62,7 +62,7 @@ $fail = eval { $plate->serve(\<<'PLATE') };
 %% my $precomp_var;
 % $precomp_var = 1;
 PLATE
-is $fail, undef, 'Precompilation failed';
+is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
 
