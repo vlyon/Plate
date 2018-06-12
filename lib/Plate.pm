@@ -184,9 +184,10 @@ sub _compile {
         or croak $@.'Plate precompilation failed';
     $pl = _parse $pl, $re_run, $file, '';
     $line .= "no strict 'vars';" if $$Plate::_s{alias_args};
-    _write $_[2], "use 5.020;use warnings;use utf8;\n".$line.$pl if defined $_[2];
-    _eval $line.$pl
+    $pl = _eval $line = $line.$pl
         or croak $@.'Plate compilation failed';
+    _write $_[2], "use 5.020;use warnings;use utf8;\n$line" if defined $_[2];
+    return $pl;
 }
 sub _make_cache_dir {
     my($dir, @mkdir) = $_[1];

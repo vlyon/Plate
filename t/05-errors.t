@@ -95,8 +95,8 @@ qr"^Can't create cache directory ./t/tmp_dir/data: No such file or directory", '
 
 $plate->set(path => 't/data');
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
-like eval { $plate->serve('faulty') } // $@,
-qr"^Can't write ./t/tmp_dir/faulty.pl: No such file or directory", 'Error writing cache file';
+like eval { $plate->serve('outer') } // $@,
+qr"^Can't write ./t/tmp_dir/outer.pl: No such file or directory", 'Error writing cache file';
 
 $plate->set(path => undef, cache_path => undef);
 like eval { $plate->serve('test') } // $@,
