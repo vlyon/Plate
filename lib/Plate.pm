@@ -457,6 +457,7 @@ or all templates if the name is C<undef>.
 =cut
 
 sub define {
+    delete $_[0]{mod}{$_[1]} if $_[0]{mod};
     $_[0]{mem}{$_[1]} = ref $_[2] eq 'CODE' ? $_[2] : do {
         local($Alias::AttrPrefix, $Plate::_s, @Plate::_c) = ('Plate::Template::', $_[0]);
         Alias::attr $$Plate::_s{globals};
@@ -541,8 +542,9 @@ sub set {
     }
 
     if (defined $$self{path}) {
+        undef $!;
         my $dir = length $$self{path} ? $$self{path} : '.';
-        -d $dir and -r _ or croak "Can't set path to $dir: ".($! // 'Not accessable');
+        -d $dir and -r _ or croak "Can't set path to $dir: ".($! || 'Not accessable');
         undef $$self{static} if $$self{static} and $$self{static} eq 'auto';
     } else {
         $$self{static} ||= 'auto';
@@ -557,6 +559,8 @@ sub set {
             (mkdir($dir), umask $umask)[0]
                 or croak "Can't create cache directory $dir: $!";
         }
+    } elsif (not $$self{cache_code}) {
+        $$self{static} ||= 'auto';
     }
 }
 

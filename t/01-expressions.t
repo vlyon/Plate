@@ -18,7 +18,7 @@ $SIG{__WARN__} = sub {
     goto &diag;
 };
 
-my $plate = Plate->new;
+my $plate = new Plate;
 
 is $plate->serve(\'<% "<html> this & that" |%>'),
 '<html> this & that',

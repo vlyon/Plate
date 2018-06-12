@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 32;
+use Test::More tests => 41;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -95,11 +95,11 @@ ok -f 't/data/inner.pl' && -f 't/data/outer.pl' && -f 't/data/test.pl', 'Cache f
 $plate->undefine;
 
 warnings_are {
-    is $plate->serve('test', qw(this & that)), $output, 'Same output from cache';
+    is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache';
 } [
     "inner-2-warn at t/data/inner.plate line 2.\n",
     "test-6-warn at t/data/test.plate line 6.\n",
-], 'Same warnings from cache';
+], 'Same warnings from disk cache';
 
 # Touch t/data/test.plate
 utime undef, undef, 't/data/test.plate';
@@ -113,19 +113,45 @@ warnings_are {
 
 isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
 
+$plate->define(test => 'defined');
+is $plate->serve('test'), 'defined', 'Redefined plate';
+
+is ref $plate->undefine('test'), 'CODE', 'Undefine returns the CODE ref';
+
+warnings_are {
+    is $plate->serve('test', qw(this & that)), $output, 'Same output';
+} [
+    "inner-2-warn at t/data/inner.plate line 2.\n",
+    "test-6-warn at t/data/test.plate line 6.\n",
+], 'Same warnings';
+
+$plate = new Plate path => 't/data';
+is $$plate{io_layers}, ':encoding(UTF-8)', 'Default encoding is UTF-8';
+
+$plate->set(encoding => 'utf8');
+is $$plate{io_layers}, ':utf8', "Encoding 'utf8' sets the IO layer to ':utf8'";
+
+$plate->set(encoding => 'UTF-8');
 is $plate->serve('utf8'),
 'ῌȇɭɭо Ẇöŗld‼',
 'Render as UTF-8';
 
-$plate = new Plate path => 't/data', encoding => 'latin1';
+$plate->set(encoding => 'latin1');
 is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render as Latin-1';
 
-$plate = new Plate path => 't/data', io_layers => ':raw';
+$plate->set(io_layers => ':raw');
 is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render as binary';
+
+$plate->set(encoding => undef);
+is $plate->serve('utf8'),
+"á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
+'Render without encoding';
+
+is $$plate{static}, 'auto', 'Static mode is automatic whithout cache_path or cache_code';
 
 $plate = new Plate path => 't/data', cache_code => 1, static => 1;
 
@@ -133,16 +159,10 @@ if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'abc';
     close $fh;
 }
-
-is $plate->serve('tmp'),
-'abc',
-'Serve plate cached in memory';
+is $plate->serve('tmp'), 'abc', 'Serve plate cached in memory';
 
 unlink 't/data/tmp.plate';
-
-is $plate->serve('tmp'),
-'abc',
-'Serve plate from memory cache without modification check';
+is $plate->serve('tmp'), 'abc', 'Serve plate from memory cache without modification check';
 
 $plate = new Plate path => 't/data', cache_code => 1, static => 0;
 
@@ -152,7 +172,10 @@ if (open my $fh, '>', 't/data/tmp.plate') {
     close $fh;
     utime $mod, $mod, 't/data/tmp.plate';
 }
+
+ok $plate->does_exist('tmp'), "Create 'tmp' template";
 $plate->can_serve('tmp'); # Cache in memory
+
 if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'xyz';
     close $fh;
