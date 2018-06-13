@@ -24,7 +24,7 @@ my $sub = $plate->define(test => 'Test');
 is ref $sub, 'CODE', 'Plate::define returns a subroutine';
 is $plate->serve('test'), 'Test', 'Render a defined plate by name';
 is $plate->serve(\'<& test &>'), 'Test', 'Call a defined plate by name';
-isnt $plate->define(test => 'Redefined'), $sub, 'Redefine a plate';
+isnt $plate->define(test => sub { 'Redefined' }), $sub, 'Redefine a plate';
 is $plate->serve('test'), 'Redefined', 'Render the redefined plate';
 
 $plate->define(test => '<test @_="<% "@_" %>"><& _ &></test>');

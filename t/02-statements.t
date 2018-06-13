@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -65,5 +65,17 @@ PLATE
 is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
+
+$plate->set(alias_args => 1);
+
+$plate->define(empty => '');
+is $plate->serve(\<<'PLATE'),
+%%# Empty
+<%% '' %%>\
+<&& empty &&>\
+%%# Empty
+PLATE
+'',
+'Empty template';
 
 ok !$warned, 'No warnings';

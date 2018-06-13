@@ -146,7 +146,7 @@ sub _parse {
                 : "Opening <$_[3]...> tag without closing </$_[3]> tag $line";
             }
 
-            my $pl = (not $_[3] and $$Plate::_s{alias_args}) ? 'Alias::attr(shift);' : '';
+            my $pl = (not $_[3] and $-[0] and $$Plate::_s{alias_args}) ? 'Alias::attr(shift);' : '';
             if (defined $stmt) {
                 unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
                 $pl .= $stmt.join('.', '$Plate::_b', @expr);
@@ -180,7 +180,7 @@ sub _compile {
     my($file, $line) = length $_[1] ? ($_[1], "#line 1 $_[1]\n") : ('-', '');
     my $pl = _eval $line._parse($_[0], $re_pre, $file, '')
         or croak $@.'Plate precompilation failed';
-    $pl = eval { $pl->() }
+    defined($pl = eval { $pl->() })
         or croak $@.'Plate precompilation failed';
     $pl = _parse $pl, $re_run, $file, '';
     $line .= "no strict 'vars';" if $$Plate::_s{alias_args};
@@ -208,11 +208,14 @@ sub _load {
     my $plate = $_[0]->_plate_file($_[1]);
     my $cache = $_[0]->_cache_file($_[1]);
     if (defined $cache) {
-        if (-f $cache and ($_[0]{static} or ($_[0]{mod}{$_[1]} // (stat _)[9]) >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9]))) {
-            return do { package # Dont index on PAUSE
-                Plate::Template;
-                do $cache;
-            } // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
+        if (-f $cache) {
+            my $_m = $_[0]{mod}{$_[1]} // (stat _)[9];
+            if ($_[0]{static} or $_m >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9] // croak "Plate template '$_[1]' does not exist")) {
+                return do { package # Dont index on PAUSE
+                    Plate::Template;
+                    do $cache;
+                } // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
+            }
         }
         $plate // croak "Plate template '$_[1]' does not exist";
         $_[0]->_make_cache_dir($_[1]);

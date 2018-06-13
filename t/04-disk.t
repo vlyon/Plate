@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 41;
+use Test::More tests => 46;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -42,6 +42,7 @@ binmode Test::More->builder->failure_output, ':utf8';
 
 unlink $_ for temp_files;
 END { unlink $_ for temp_files }
+utime 946684800, 946684800, 't/data/test.plate'; # Set mtime to 2000-01-01
 
 my $output = <<'OUTPUT';
 [
@@ -53,8 +54,10 @@ this &amp; that
 this &amp;amp; that
 OUTPUT
 
-my $plate = new Plate path => 't', cache_path => 't/tmp_dir', umask => 027;
+my $plate = new Plate path => 't', cache_path => '';
+like $$plate{cache_path}, qr/^\./, 'Empty cache_path set to relative path';
 
+$plate->set(cache_path => 't/tmp_dir', umask => 027);
 ok -d 't/tmp_dir', 'Created cache_path directory';
 is sprintf('%04o', 0777 & (stat _)[2]), '0750', 'Created cache_path with umask permissions';
 
@@ -91,6 +94,7 @@ warnings_are {
 ], 'Expected warnings';
 
 ok -f 't/data/inner.pl' && -f 't/data/outer.pl' && -f 't/data/test.pl', 'Cache files created';
+utime 946684800, 946684800, 't/data/test.pl'; # Set mtime to 2000-01-01
 
 $plate->undefine;
 
@@ -101,31 +105,37 @@ warnings_are {
     "test-6-warn at t/data/test.plate line 6.\n",
 ], 'Same warnings from disk cache';
 
-# Touch t/data/test.plate
-utime undef, undef, 't/data/test.plate';
-
-warnings_are {
-    is $plate->serve('test', qw(this & that)), $output, 'Same output';
-} [
-    "inner-2-warn at t/data/inner.plate line 2.\n",
-    "test-6-warn at t/data/test.plate line 6.\n",
-], 'Same warnings';
-
-isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
+is +(stat 't/data/test.pl')[9], 946684800, "Cache wasn't updated";
+utime 946684800, 946684800, 't/data/test.pl'; # Set mtime to 2000-01-01
+utime undef, undef, 't/data/test.plate'; # Touch t/data/test.plate
 
 $plate->define(test => 'defined');
 is $plate->serve('test'), 'defined', 'Redefined plate';
-
 is ref $plate->undefine('test'), 'CODE', 'Undefine returns the CODE ref';
 
 warnings_are {
-    is $plate->serve('test', qw(this & that)), $output, 'Same output';
+    is $plate->serve('test', qw(this & that)), $output, 'Same output after undefine';
 } [
     "inner-2-warn at t/data/inner.plate line 2.\n",
     "test-6-warn at t/data/test.plate line 6.\n",
-], 'Same warnings';
+], 'Same warnings after undefine';
+
+isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
+
+is $plate->serve_with('outer', 'outer'), "[\n[\n]]", 'Serve with a layout';
+
+$plate = new Plate path => undef, cache_path => 't/data';
+is $$plate{static}, 'auto', 'Static mode is automatic whithout path';
+
+warnings_are {
+    is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache only';
+} [
+    "inner-2-warn at t/data/inner.plate line 2.\n",
+    "test-6-warn at t/data/test.plate line 6.\n",
+], 'Same warnings from disk cache only';
 
 $plate = new Plate path => 't/data';
+is $$plate{static}, 'auto', 'Static mode is automatic whithout cache_path or cache_code';
 is $$plate{io_layers}, ':encoding(UTF-8)', 'Default encoding is UTF-8';
 
 $plate->set(encoding => 'utf8');
@@ -150,8 +160,6 @@ $plate->set(encoding => undef);
 is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render without encoding';
-
-is $$plate{static}, 'auto', 'Static mode is automatic whithout cache_path or cache_code';
 
 $plate = new Plate path => 't/data', cache_code => 1, static => 1;
 
@@ -191,6 +199,7 @@ is $plate->serve('tmp'),
 'Serve reloaded plate';
 
 unlink 't/data/tmp.plate';
+ok !$plate->does_exist('tmp'), "Delete 'tmp' template";
 ok !eval { $plate->serve('tmp') }, "Don't serve deleted plate";
 
 ok !$warned, 'No unexpected warnings';
