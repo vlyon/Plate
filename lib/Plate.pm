@@ -130,9 +130,9 @@ sub _parse {
                 } else {
                     $stmt = 'local$Plate::_b=';
                 }
-                local $_[3] = ($_[1] == $re_pre && '&').'&' if defined $6;
-                $stmt .= join('.', splice(@expr), _parse_fltr _parse_call($7).(defined $6 ? &_parse : 'undef').')', $8)
-                .';pop@Plate::_c;';
+                $stmt .= join('.', splice(@expr),
+                    _parse_fltr _parse_call($7).(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')',
+                    $8).';pop@Plate::_c;';
             }
 
         } else {

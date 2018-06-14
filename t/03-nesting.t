@@ -6,7 +6,7 @@ use Test::More tests => 13;
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
         require Devel::Cover;
-        import Devel::Cover -db => 'cover_db', -coverage => qw(statement subroutine), -silent => 1, '+ignore' => qr'^t/';
+        import Devel::Cover -db => 'cover_db', -coverage => qw(branch statement subroutine), -silent => 1, '+ignore' => qr'^t/';
     }
 }
 
