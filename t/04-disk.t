@@ -69,7 +69,7 @@ ok -f 't/tmp_dir/data/test.pl', 'Created cache file';
 unlink 't/tmp_dir/data/test.pl' or diag "Can't delete t/tmp_dir/data/test.pl: $!";
 rmdir or diag "Can't delete $_: $!" for qw(t/tmp_dir/data t/tmp_dir);
 
-$plate = new Plate path => 't/data', cache_path => 't/data';
+$plate = new Plate path => 't/data', cache_path => 't/data', cache_code => undef;
 
 ok !$plate->does_exist('missing'), "Plate 'missing' doesn't exist";
 ok !$plate->can_serve('missing'), "Plate 'missing' can't be served";
@@ -134,7 +134,7 @@ warnings_are {
     "test-6-warn at t/data/test.plate line 6.\n",
 ], 'Same warnings from disk cache only';
 
-$plate = new Plate path => 't/data';
+$plate = new Plate path => 't/data', cache_code => undef;
 is $$plate{static}, 'auto', 'Static mode is automatic whithout cache_path or cache_code';
 is $$plate{io_layers}, ':encoding(UTF-8)', 'Default encoding is UTF-8';
 
@@ -146,10 +146,10 @@ is $plate->serve('utf8'),
 'ῌȇɭɭо Ẇöŗld‼',
 'Render as UTF-8';
 
-$plate->set(encoding => 'latin1');
+$plate->set(encoding => 'latin9');
 is $plate->serve('utf8'),
-"á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
-'Render as Latin-1';
+"á¿\214È\207É­É­ÐŸ áº\206Ã¶Å\227ldâ\200Œ",
+'Render as Latin-9';
 
 $plate->set(io_layers => ':raw');
 is $plate->serve('utf8'),
@@ -161,7 +161,7 @@ is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render without encoding';
 
-$plate = new Plate path => 't/data', cache_code => 1, static => 1;
+$plate = new Plate path => 't/data', static => 1;
 
 if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'abc';
@@ -172,7 +172,7 @@ is $plate->serve('tmp'), 'abc', 'Serve plate cached in memory';
 unlink 't/data/tmp.plate';
 is $plate->serve('tmp'), 'abc', 'Serve plate from memory cache without modification check';
 
-$plate = new Plate path => 't/data', cache_code => 1, static => 0;
+$plate = new Plate path => 't/data', static => 0;
 
 my $mod = time - 1;
 if (open my $fh, '>', 't/data/tmp.plate') {

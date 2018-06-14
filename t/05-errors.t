@@ -40,7 +40,7 @@ qr"^\QInvalid filters (not a hash reference) ", "Can't set invalid filters";
 like eval { new Plate globals => ['not a hash'] } // $@,
 qr"^\QInvalid globals (not a hash reference) ", "Can't set invalid globals";
 
-my $plate = new Plate;
+my $plate = new Plate cache_code => undef;
 
 like eval { $plate->filter(-test => 'no::such_sub') } // $@,
 qr"^\QInvalid filter name '-test' ", "Can't set invalid filter name";

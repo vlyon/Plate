@@ -278,9 +278,10 @@ The built-in default filter is a very basic HTML filter.
 To prevent the default filter being used for a single variable,
 just set the filter to an empty string. Eg: C<< <% $unfiltered |%> >>
 
-=item C<< cache_code => undef >>
+=item C<< cache_code => 1 >>
 
-If set to a true value, the engine will cache compiled templates in memory.
+If set to a true value, the engine will cache compiled template code in memory.
+This vastly improves performance at the expense of some memory.
 
 =item C<< cache_path => undef >>
 
@@ -334,7 +335,7 @@ sub new {
     my $self = bless {
         alias_args => undef,
         auto_filter => 'html',
-        cache_code => undef,
+        cache_code => 1,
         cache_path => undef,
         cache_suffix => '.pl',
         filters => {
