@@ -59,14 +59,11 @@ sub _parse_cmnt {
         : ''
     : $_[0];
 }
-sub _parse_call {
-    'Plate::_r('.($_[0] =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ ? length $2 ? "'$1',($2)" : "'$1'" : $_[0]).',';
-}
 sub _parse_defn {
     $_[0] =~ /\W/ ? "'".($_[0] =~ s/(\\|')/\\$1/gr)."'" : $_[0];
 }
 sub _parse_fltr {
-    my $expr = "do{$_[0]}";
+    my $expr = $_[0];
     $expr .= "//''" unless $$Plate::_s{keep_undef};
     if (length $_[1]) {
         for (split /\s*\|\s*/, $_[1]) {
@@ -117,23 +114,36 @@ sub _parse {
 
         } elsif (defined $4) {
             # <% ... %>
-            push @expr, _parse_fltr $4, $5 // $$Plate::_s{auto_filter};
+            push @expr, _parse_fltr "do{$4}", $5 // $$Plate::_s{auto_filter};
 
         } elsif (defined $7) {
             # <& ... &> or <&| ... &>
-            if ($7 eq '_') {
-                push @expr, _parse_fltr '&Plate::content', $8;
-            } else {
-                if (defined $stmt) {
-                    unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
-                    $stmt .= '$Plate::_b.=';
-                } else {
-                    $stmt = 'local$Plate::_b=';
+            my($tmpl, $args) = do { $7 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
+            if (defined $tmpl) {
+                if ($tmpl eq '_') {
+                    push @expr, _parse_fltr defined $6
+                    ? do {
+                        $args = defined $args ? "($args)" : '';
+                        local $_[3] = ($_[1] == $re_pre && '&').'&';
+                        '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,'.&_parse."}$args}:undef)"
+                    }
+                    : defined $args ? "Plate::content($args)" : '&Plate::content', $8;
+                    next;
                 }
-                $stmt .= join('.', splice(@expr),
-                    _parse_fltr _parse_call($7).(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')',
-                    $8).';pop@Plate::_c;';
+                $tmpl = defined $args ? "Plate::_r('$tmpl',($args)," : "Plate::_r('$tmpl',";
+            } else {
+                $tmpl = "Plate::_r($7,";
             }
+
+            if (defined $stmt) {
+                unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
+                $stmt .= '$Plate::_b.=';
+            } else {
+                $stmt = 'local$Plate::_b=';
+            }
+            $stmt .= join('.', splice(@expr),
+                _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')',
+                $8).';pop@Plate::_c;';
 
         } else {
             # </%def> or </&> or \z
@@ -241,6 +251,17 @@ sub _sub {
 sub _empty {}
 sub _r {
     my $tmpl = shift;
+    if ($tmpl eq '_') {
+        return undef unless @Plate::_c;
+        if (defined(my $c = pop)) {
+            push @Plate::_c, $c;
+            local @Plate::_c = @Plate::_c;
+            return &{splice @Plate::_c, -2, 1};
+        } else {
+            local @Plate::_c = @Plate::_c;
+            return &{pop @Plate::_c};
+        }
+    }
     push @Plate::_c, pop // \&_empty;
     if (@Plate::_c > $$Plate::_s{max_call_depth}) {
         my($f, $l) = (caller 0)[1, 2];

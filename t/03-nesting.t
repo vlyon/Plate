@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 13;
+use Test::More tests => 15;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -46,7 +46,7 @@ PLATE
 '<test>&lt;inner&gt;this &amp;amp; that&lt;/inner&gt;</test>',
 'Render a plate with content using &content';
 
-is $plate->serve(\'<& test &>'),
+is $plate->serve(\'<& test, 1..3 &>'),
 '<test></test>',
 'Render a plate without content using &content';
 
@@ -54,6 +54,9 @@ $plate->define(a => '<a><&| b, @_ &>x</&></a>');
 $plate->define(b => '<b><&| c, @_ &>+<% &content %>+</&></b>');
 $plate->define(c => '<c><& _ &> <& _ &></c>');
 is $plate->serve('a'), '<a><b><c>+x+ +x+</c></b></a>', 'Multi-level nesting';
+
+$plate->define(c => '<c><& _ &> <&| _ &>I<& _ &>I</&></c>');
+is $plate->serve('a'), '<a><b><c>+x+ +IxI+</c></b></a>', 'Multi-level nesting with injected content';
 
 $plate->define(a => '<a><&| b, @_ &><% chr 64 + $_[0] %></&></a>');
 $plate->define(b => '<b><&| c, @_ &>{<& _ &>"<% shift %>"<% &content %>}</&></b>');
@@ -83,5 +86,13 @@ PLATE
 is $plate->serve('a'),
 '<a><b><c>inline 1</c><c>inline 2</c></b><c>inline 1</c><c>inline 2</c></a>',
 'Inline %def blocks override locally';
+
+$plate->define(a => <<'PLATE');
+<%def b>
+<b><&| _ &>+</&>,<&| _, 3, 4 &>+</&>,<&| qw(_ 5 6) &>+</&>,<&| _, () &>+</&></b>\
+</%def>
+<a><&| b, 1, 2 &><% shift // '?' %><& _, 7, 8 &><% shift // '?' %></&><& '_' &></a>\
+PLATE
+is $plate->serve_with(\"<& '_' &>", 'a'), '<a><b>1+2,3+4,5+6,?+?</b></a>', 'Override @_ in content';
 
 ok !$warned, 'No warnings';
