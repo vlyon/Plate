@@ -66,12 +66,17 @@ is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
 
-$plate->set(alias_args => 1);
+$plate->set(init => q{
+    Alias::attr(shift);
+}, once => q{
+    no strict 'vars';
+});
 
 $plate->define(empty => '');
-is $plate->serve(\<<'PLATE'),
+is $plate->serve(\<<'PLATE', { empty => '' }),
 %%# Empty
 <%% '' %%>\
+<% $empty %>\
 <&& empty &&>\
 %%# Empty
 PLATE

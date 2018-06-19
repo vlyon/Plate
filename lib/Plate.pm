@@ -97,7 +97,7 @@ sub _parse {
                 $stmt = 'local$Plate::_b='.(@expr ? join('.', splice @expr) : "''").';';
             }
             local $_[3] = ($_[1] == $re_pre && '%').'%def';
-            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn(my $def = $2)."}=\n".&_parse.';';
+            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn(my $def = $2)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $3) {
             # % ...
@@ -125,7 +125,7 @@ sub _parse {
                     ? do {
                         $args = defined $args ? "($args)" : '';
                         local $_[3] = ($_[1] == $re_pre && '&').'&';
-                        '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,'.&_parse."}$args}:undef)"
+                        '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
                     : defined $args ? "Plate::content($args)" : '&Plate::content', $8;
                     next;
@@ -134,7 +134,7 @@ sub _parse {
             } else {
                 $tmpl = "Plate::_r($7,";
             }
-            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')', $8;
+            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', 'sub{'.&_parse.'}') : 'undef').')', $8;
 
         } else {
             # </%def> or </&> or \z
@@ -147,15 +147,13 @@ sub _parse {
                 : "Opening <$_[3]...> tag without closing </$_[3]> tag $line";
             }
 
-            my $pl = (not $_[3] and $-[0] and $$Plate::_s{alias_args}) ? 'Alias::attr(shift);' : '';
-            if (defined $stmt) {
+            my $pl = defined $stmt
+            ? do {
                 unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
-                $pl .= $stmt.join('.', '$Plate::_b', @expr);
-            } else {
-                $pl .= @expr ? join('.', @expr) : "''";
-            }
+                $stmt.join('.', '$Plate::_b', @expr);
+            } : @expr ? join('.', @expr) : "''";
             $pl .= "\n" if defined $9;
-            return "sub{$pl}";
+            return $pl;
         }
     }
 }
@@ -178,16 +176,15 @@ sub _eval {
     eval $_[0];
 }
 sub _compile {
-    my($file, $line) = length $_[1] ? ($_[1], "#line 1 $_[1]\n") : ('-', '');
-    my $pl = _eval $line._parse($_[0], $re_pre, $file, '')
+    my($file, $line) = length $_[1] ? ($_[1], "\n#line 1 $_[1]\n") : ('-', '');
+    my $pl = _eval 'sub{'.$line._parse($_[0], $re_pre, $file, '').'}'
         or croak $@.'Plate precompilation failed';
     defined($pl = eval { $pl->() })
         or croak $@.'Plate precompilation failed';
     $pl = _parse $pl, $re_run, $file, '';
-    $line .= "no strict 'vars';" if $$Plate::_s{alias_args};
-    $pl = _eval $line = $line.$pl
+    $pl = _eval $line = $$Plate::_s{once}.'sub{'.$$Plate::_s{init}.$line.$pl.'}'
         or croak $@.'Plate compilation failed';
-    _write $_[2], "use 5.020;use warnings;use utf8;\n$line" if defined $_[2];
+    _write $_[2], 'use 5.020;use warnings;use utf8;'.$line if defined $_[2];
     return $pl;
 }
 sub _make_cache_dir {
@@ -346,7 +343,6 @@ The C<umask> used when creating cache files and directories.
 sub new {
     my $class = shift;
     my $self = bless {
-        alias_args => undef,
         auto_filter => 'html',
         cache_code => 1,
         cache_path => undef,
@@ -357,10 +353,12 @@ sub new {
         globals => {
             content => \&content,
         },
-        keep_undef => undef,
+        init => '',
         io_layers => ':encoding(UTF-8)',
+        keep_undef => undef,
         max_call_depth => 99,
         mem => {},
+        once => '',
         path => '',
         static => undef,
         suffix => '.plate',
@@ -557,7 +555,9 @@ sub set {
                 $self->$method($_ => undef) for keys %{$$self{globals}};
             }
             next;
-        } elsif ($k !~ /^(?:alias_args|auto_filter|cache_code|keep_undef|max_call_depth|static|umask)$/) {
+        } elsif ($k eq 'init' or $k eq 'once') {
+            $v //= '';
+        } elsif ($k !~ /^(?:auto_filter|cache_code|keep_undef|max_call_depth|static|umask)$/) {
             croak "Invalid setting '$k'";
         }
         $$self{$k} = $v;
