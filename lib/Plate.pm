@@ -134,16 +134,7 @@ sub _parse {
             } else {
                 $tmpl = "Plate::_r($7,";
             }
-
-            if (defined $stmt) {
-                unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
-                $stmt .= '$Plate::_b.=';
-            } else {
-                $stmt = 'local$Plate::_b=';
-            }
-            $stmt .= join('.', splice(@expr),
-                _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')',
-                $8).';pop@Plate::_c;';
+            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', &_parse) : 'undef').')', $8;
 
         } else {
             # </%def> or </&> or \z
@@ -254,20 +245,21 @@ sub _r {
     if ($tmpl eq '_') {
         return undef unless @Plate::_c;
         if (defined(my $c = pop)) {
-            push @Plate::_c, $c;
             local @Plate::_c = @Plate::_c;
-            return &{splice @Plate::_c, -2, 1};
+            return &{splice @Plate::_c, -1, 1, $c};
         } else {
+            $tmpl = pop @Plate::_c;
             local @Plate::_c = @Plate::_c;
-            return &{pop @Plate::_c};
+            return &{$tmpl};
         }
     }
-    push @Plate::_c, pop // \&_empty;
-    if (@Plate::_c > $$Plate::_s{max_call_depth}) {
+    if (@Plate::_c >= $$Plate::_s{max_call_depth}) {
         my($f, $l) = (caller 0)[1, 2];
         die "Call depth limit exceeded while calling \"$tmpl\" at $f line $l.\n";
     }
-    goto(_sub $tmpl);
+    local @Plate::_c = @Plate::_c;
+    push @Plate::_c, pop // \&_empty;
+    &{_sub $tmpl};
 }
 sub _f {
     goto &{$$Plate::_s{filters}{+shift}};

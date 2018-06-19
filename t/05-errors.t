@@ -75,13 +75,14 @@ like $@, qr"^\QCan't read .missing.plate: No such file or directory at err line 
 Plate precompilation failed", 'Expected error';
 
 $plate->define(err => <<'PLATE');
+%% 0;
 Defined only in precompilation
 <%%def .missing>
 </%%def>
 <& .missing &>
 PLATE
 ok !eval { $plate->serve('err') }, "Can't use precompiled %def blocks during runtime";
-is $@, "Can't read .missing.plate: No such file or directory at err line 4.\n", 'Expected error';
+is $@, "Can't read .missing.plate: No such file or directory at err line 5.\n", 'Expected error';
 
 ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
