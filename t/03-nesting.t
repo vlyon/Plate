@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 15;
+use Test::More tests => 16;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -94,5 +94,13 @@ $plate->define(a => <<'PLATE');
 <a><&| b, 1, 2 &><% shift // '?' %><& _, 7, 8 &><% shift // '?' %></&><& '_' &></a>\
 PLATE
 is $plate->serve_with(\"<& '_' &>", 'a'), '<a><b>1+2,3+4,5+6,?+?</b></a>', 'Override @_ in content';
+
+$plate->define(a => <<'PLATE');
+<%%def b>
+<b><&&| _ &&>+</&&>,<&&| _, 3, 4 &&>+</&&>,<&&| qw(_ 5 6) &&>+</&&>,<&&| _, () &&>+</&&></b>\
+</%%def>
+<a><&&| b, 1, 2 &&><%% shift // '?' %%><&& _, 7, 8 &&><%% shift // '?' %%></&&><&& '_' &&></a>\
+PLATE
+is $plate->serve_with(\"<&& '_' &&>", 'a'), '<a><b>1+2,3+4,5+6,?+?</b></a>', 'Preprocessing @_ in content';
 
 ok !$warned, 'No warnings';

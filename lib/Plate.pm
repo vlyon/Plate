@@ -55,7 +55,9 @@ sub _parse_text {
 sub _parse_cmnt {
     $_[0] =~ /^#(?:\s*line\s+(\d+)\s*(?:\s("?)([^"]+)\g2)?\s*|.*)$/
     ? defined $1
-        ? "\n#line $1".(defined $3 && " $3")
+        ? defined $3
+            ? "\n#line $1 $3"
+            : "\n#line $1"
         : ''
     : $_[0];
 }
@@ -124,7 +126,7 @@ sub _parse {
                     push @expr, _parse_fltr defined $6
                     ? do {
                         $args = defined $args ? "($args)" : '';
-                        local $_[3] = ($_[1] == $re_pre && '&').'&';
+                        local $_[3] = $_[1] == $re_pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
                     : defined $args ? "Plate::content($args)" : '&Plate::content', $8;
@@ -134,7 +136,7 @@ sub _parse {
             } else {
                 $tmpl = "Plate::_r($7,";
             }
-            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = ($_[1] == $re_pre && '&').'&', 'sub{'.&_parse.'}') : 'undef').')', $8;
+            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $8;
 
         } else {
             # </%def> or </&> or \z
@@ -390,10 +392,10 @@ C<$content> may also be a CODE ref which should return the content directly.
 
 sub serve { shift->serve_with(undef, @_) }
 sub serve_with {
-    local($Alias::AttrPrefix, $Plate::_s, @Plate::_c) = ('Plate::Template::', shift, shift // \&_empty);
+    local($Alias::AttrPrefix, $Plate::_s) = ('Plate::Template::', shift);
     Alias::attr $$Plate::_s{globals};
-    $Plate::_c[0] = ref $Plate::_c[0] eq 'SCALAR' ? _compile ${$Plate::_c[0]} : _sub $Plate::_c[0] if ref $Plate::_c[0] ne 'CODE';
-    my $tmpl = shift;
+    my($_c, $tmpl) = (shift // \&_empty, shift);
+    local @Plate::_c = ref $_c eq 'CODE' ? $_c : ref $_c eq 'SCALAR' ? _compile $$_c : _sub $_c;
 
     my $sub = ref $tmpl eq 'SCALAR'
     ? _compile $$tmpl
