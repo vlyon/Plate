@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 20;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -73,8 +73,13 @@ is $plate->serve(\'<% trim "  Hello World\n" %>'),
 'Hello World',
 'Call a global function';
 
-$plate->set(globals => undef);
+$plate->global(var1 => undef);
 is $plate->serve(\'<% $var1 %>'),
+'',
+'Remove a global';
+
+$plate->set(globals => undef);
+is $plate->serve(\'<% "@var2" %>'),
 '',
 'Remove all globals';
 
@@ -98,5 +103,10 @@ $plate->set(auto_filter => 'upper');
 is $plate->serve(\'<% "Hello World" %>'),
 'HELLO WORLD',
 'Set a default filter';
+
+$plate->set(auto_filter => undef);
+is $plate->serve(\'<% "Hello World" %>'),
+'Hello World',
+'Remove auto_filter';
 
 ok !$warned, 'No warnings';

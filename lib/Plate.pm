@@ -210,7 +210,7 @@ sub _load {
     if (defined $cache) {
         if (-f $cache) {
             my $_m = $_[0]{mod}{$_[1]} // (stat _)[9];
-            if ($_[0]{static} or $_m >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9] // croak "Plate template '$_[1]' does not exist")) {
+            if ($_[0]{static} or $_m >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9] // croak "Can't read $plate: $!")) {
                 return do { package # Dont index on PAUSE
                     Plate::Template;
                     do $cache;
@@ -228,7 +228,8 @@ sub _load {
 }
 sub _cached_sub {
     return $_[0]{mem}{$_[1]} //= $_[0]->_load($_[1]) if $_[0]{static} or not exists $_[0]{mod}{$_[1]};
-    my $mod = (stat $_[0]->_plate_file($_[1]))[9] // croak "Plate template '$_[1]' does not exist";
+    my $mod = (stat $_[0]->_plate_file($_[1]))[9]
+        or croak "Plate template '$_[1]' does not exist";
     return $_[0]{mem}{$_[1]} if $_[0]{mod}{$_[1]} == $mod;
     $_[0]{mem}{$_[1]} = $_[0]->_load($_[1], $mod);
 }
@@ -428,6 +429,7 @@ sub filter {
 
     $name =~ /^\w+$/
         or croak "Invalid filter name '$name'";
+    return delete $$self{filters}{$name} unless defined $code;
     ref $code eq 'CODE'
         or $code = ($code =~ /(.*)::(.*)/ ? $1->can($2) : do { my($i,$p) = 0; $i++ while __PACKAGE__ eq ($p = caller $i); $p->can($code) })
         or croak "Invalid subroutine '$_[2]' for filter '$name'";
@@ -554,7 +556,7 @@ sub set {
                 ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
                 $self->$method($_ => $$v{$_}) for keys %$v;
             } else {
-                $self->$method($_ => undef) for keys %{$$self{globals}};
+                undef %{$$self{$k}};
             }
             next;
         } elsif ($k eq 'init' or $k eq 'once') {

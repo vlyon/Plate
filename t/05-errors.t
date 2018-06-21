@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 26;
+use Test::More tests => 30;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -43,10 +43,10 @@ qr"^\QInvalid globals (not a hash reference) ", "Can't set invalid globals";
 my $plate = new Plate cache_code => undef;
 
 like eval { $plate->filter(-test => 'no::such_sub') } // $@,
-qr"^\QInvalid filter name '-test' ", "Can't set invalid filter name";
+qr"^Invalid filter name '-test' ", "Can't set invalid filter name";
 
 like eval { $plate->filter(test => 'no::such_sub') } // $@,
-qr"^\QInvalid subroutine 'no::such_sub' for filter 'test' ", "Can't set invalid filter sub";
+qr"^Invalid subroutine 'no::such_sub' for filter 'test' ", "Can't set invalid filter sub";
 
 ok !eval { $plate->define(err => <<'PLATE');
 % No opening tag
@@ -87,6 +87,10 @@ is $@, "Can't read .missing.plate: No such file or directory at err line 5.\n", 
 ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
 
+$plate->filter(html => undef);
+like eval { $plate->serve(\'<% 1 %>') } // $@,
+qr"^No 'html' filter defined ", 'Invalid auto_filter';
+
 $plate->define(err => '<& err &>');
 is eval { $plate->serve_with(\' ', 'err') } // $@,
 qq'Call depth limit exceeded while calling "err" at err line 1.\n', 'Error on deep recursion';
@@ -95,10 +99,21 @@ rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!" if -d 't/tmp_dir';
 $plate->set(path => 't', cache_path => 't/tmp_dir', umask => 027);
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('data/faulty') } // $@,
-qr"^Can't create cache directory ./t/tmp_dir/data: No such file or directory", 'Error creating cache directory';
+qr"^Can't create cache directory \./t/tmp_dir/data: No such file or directory", 'Error creating cache directory';
+
+$plate->set(path => undef);
+like eval { $plate->serve('outer') } // $@,
+qr"^Plate template 'outer' does not exist ", 'Missing cache file on undefined path';
+
+$plate->set(path => 't');
+if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer.pl: $!") {
+    close $fh;
+}
+like eval { $plate->serve('outer') } // $@,
+qr"^Can't read t/outer\.plate: No such file or directory ", 'Missing template to reload from';
 
 $plate->set(path => 't/data');
-if (open my $fh, '>', 't/tmp_dir/outer.pl') {
+if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer.pl: $!") {
     print $fh '{';
     close $fh;
 }
@@ -107,18 +122,22 @@ qr/^syntax error /m, 'Error parsing cache file';
 
 chmod 0, 't/tmp_dir/outer.pl';
 like eval { $plate->serve('outer') } // $@,
-qr"^Couldn't load ./t/tmp_dir/outer.pl: ", 'Error reading cache file';
+qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file';
 unlink 't/tmp_dir/outer.pl';
 
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('outer') } // $@,
-qr"^Can't write ./t/tmp_dir/outer.pl: No such file or directory", 'Error writing cache file';
+qr"^Can't write \./t/tmp_dir/outer\.pl: No such file or directory", 'Error writing cache file';
+
+$plate->set(path => '', cache_path => '');
+like eval { $plate->serve('test') } // $@,
+qr"^Can't read test\.plate: No such file or directory ", 'Error on non-existent template';
 
 $plate->set(path => undef, cache_path => undef);
 like eval { $plate->serve('test') } // $@,
 qr"^Plate template 'test' does not exist ", 'Error on undefined path & cache_path';
 
-$plate->set(cache_path => 't/tmp_dir', umask => 0777);
+$plate->set(path => undef, cache_path => 't/tmp_dir', umask => 0777);
 like eval { $plate->set(path => 't/tmp_dir') } // $@,
 qr"^Can't set path to t/tmp_dir/: Not accessable", 'Error on inaccessable path';
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
