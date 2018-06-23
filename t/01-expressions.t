@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 20;
+use Test::More tests => 21;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -67,6 +67,11 @@ $plate->set(globals => {
 is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %> <% ref $var4 %>'),
 'String Array Hash Plate',
 'Set & use globals';
+
+$plate->set(package => 'Some::Where');
+is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %> <% ref $Some::Where::var4 %>'),
+'String Array Hash Plate',
+'Set a new package name & use globals';
 
 ok $plate->global(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a global function';
 is $plate->serve(\'<% trim "  Hello World\n" %>'),

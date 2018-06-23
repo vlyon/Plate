@@ -173,9 +173,7 @@ sub _write {
     print $fh $_[1];
 }
 sub _eval {
-    package # Dont index on PAUSE
-        Plate::Template;
-    eval $_[0];
+    eval "package $$Plate::_s{package};$_[0]";
 }
 sub _compile {
     my($file, $line) = length $_[1] ? ($_[1], "\n#line 1 $_[1]\n") : ('-', '');
@@ -186,7 +184,7 @@ sub _compile {
     $pl = _parse $pl, $re_run, $file, '';
     $pl = _eval $line = $$Plate::_s{once}.'sub{'.$$Plate::_s{init}.$line.$pl.'}'
         or croak $@.'Plate compilation failed';
-    _write $_[2], 'use 5.020;use warnings;use utf8;'.$line if defined $_[2];
+    _write $_[2], "use 5.020;use warnings;use utf8;package $$Plate::_s{package};$line" if defined $_[2];
     return $pl;
 }
 sub _make_cache_dir {
@@ -211,10 +209,7 @@ sub _load {
         if (-f $cache) {
             my $_m = $_[0]{mod}{$_[1]} // (stat _)[9];
             if ($_[0]{static} or $_m >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9] // croak "Can't read $plate: $!")) {
-                return do { package # Dont index on PAUSE
-                    Plate::Template;
-                    do $cache;
-                } // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
+                return do $cache // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
             }
         }
         $plate // croak "Plate template '$_[1]' does not exist";
@@ -318,6 +313,10 @@ then variables and calls that return C<undef> are converted to an empty string.
 
 This sets the maximum call depth to prevent infinite recursion.
 
+=item C<< package => 'Plate::Template' >>
+
+The package name that templates are compiled and run in.
+
 =item C<< path => '' >>
 
 The path to the templates on the filesystem.
@@ -362,6 +361,7 @@ sub new {
         max_call_depth => 99,
         mem => {},
         once => '',
+        package => 'Plate::Template',
         path => '',
         static => undef,
         suffix => '.plate',
@@ -393,7 +393,7 @@ C<$content> may also be a CODE ref which should return the content directly.
 
 sub serve { shift->serve_with(undef, @_) }
 sub serve_with {
-    local($Alias::AttrPrefix, $Plate::_s) = ('Plate::Template::', shift);
+    local($Alias::AttrPrefix, $Plate::_s) = ($_[0]{package}.'::', shift);
     Alias::attr $$Plate::_s{globals};
     my($_c, $tmpl) = (shift // \&_empty, shift);
     local @Plate::_c = ref $_c eq 'CODE' ? $_c : ref $_c eq 'SCALAR' ? _compile $$_c : _sub $_c;
@@ -443,7 +443,7 @@ sub filter {
     $plate->global(array => \%array);
     $plate->global(func => \&func);
 
-Import a new variable into the C<Plate::Template> package for use by all templates.
+Import a new variable into the templating package for use by all templates.
 All templates will have access to these variables even under C<use strict>.
 
 To remove a global pass C<undef> as the value.
@@ -480,7 +480,7 @@ or all templates if the name is C<undef>.
 sub define {
     delete $_[0]{mod}{$_[1]} if $_[0]{mod};
     $_[0]{mem}{$_[1]} = ref $_[2] eq 'CODE' ? $_[2] : do {
-        local($Alias::AttrPrefix, $Plate::_s, @Plate::_c) = ('Plate::Template::', $_[0]);
+        local($Alias::AttrPrefix, $Plate::_s, @Plate::_c) = ($_[0]{package}.'::', $_[0]);
         Alias::attr $$Plate::_s{globals};
         _compile $_[2], $_[1];
     };
@@ -561,6 +561,9 @@ sub set {
             next;
         } elsif ($k eq 'init' or $k eq 'once') {
             $v //= '';
+        } elsif ($k eq 'package') {
+            defined $v and $v =~ /^[A-Z_a-z][0-9A-Z_a-z]*(?:::[0-9A-Z_a-z]+)*$/
+                or croak "Invalid package name '".($v // '')."'";
         } elsif ($k !~ /^(?:auto_filter|cache_code|keep_undef|max_call_depth|static|umask)$/) {
             croak "Invalid setting '$k'";
         }

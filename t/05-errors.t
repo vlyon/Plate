@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 30;
+use Test::More tests => 31;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -39,6 +39,9 @@ qr"^\QInvalid filters (not a hash reference) ", "Can't set invalid filters";
 
 like eval { new Plate globals => ['not a hash'] } // $@,
 qr"^\QInvalid globals (not a hash reference) ", "Can't set invalid globals";
+
+like eval { new Plate package => 'Not:Valid' } // $@,
+qr"^Invalid package name ", "Can't set invalid package name";
 
 my $plate = new Plate cache_code => undef;
 
