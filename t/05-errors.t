@@ -37,8 +37,8 @@ qr"^Can't set path to ", "Can't set invalid path";
 like eval { new Plate filters => 'not a hash' } // $@,
 qr"^\QInvalid filters (not a hash reference) ", "Can't set invalid filters";
 
-like eval { new Plate globals => ['not a hash'] } // $@,
-qr"^\QInvalid globals (not a hash reference) ", "Can't set invalid globals";
+like eval { new Plate vars => ['not a hash'] } // $@,
+qr"^\QInvalid vars (not a hash reference) ", "Can't set invalid vars";
 
 like eval { new Plate package => 'Not:Valid' } // $@,
 qr"^Invalid package name ", "Can't set invalid package name";

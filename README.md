@@ -41,9 +41,10 @@ Options (with their defaults) are:
     To prevent the default filter being used for a single variable,
     just set the filter to an empty string. Eg: `<% $unfiltered |%>`
 
-- `cache_code => undef`
+- `cache_code => 1`
 
-    If set to a true value, the engine will cache compiled templates in memory.
+    If set to a true value, the engine will cache compiled template code in memory.
+    This vastly improves performance at the expense of some memory.
 
 - `cache_path => undef`
 
@@ -66,6 +67,10 @@ Options (with their defaults) are:
 - `max_call_depth => 99`
 
     This sets the maximum call depth to prevent infinite recursion.
+
+- `package => 'Plate::Template'`
+
+    The package name that templates are compiled and run in.
 
 - `path => ''`
 
@@ -124,23 +129,22 @@ Add a new filter for use in templates.
 The subroutine will be given one argument (the content to filter) as a string,
 and must return the filtered string.
 
-## global
+## var
 
 ```perl
-$plate->global(var => $var);
-$plate->global(hash => \%hash);
-$plate->global(array => \%array);
-$plate->global(func => \&func);
+$plate->var('$var' => \$var);
+$plate->var('%hash' => \%hash);
+$plate->var('@array' => \@array);
+$plate->var(func => \&func);
+$plate->var(CONST => 123);
 ```
 
-Import a new variable into the `Plate::Template` package for use by all templates.
+Import a new local variable into the templating package for use by all templates.
 All templates will have access to these variables even under `use strict`.
 
-To remove a global pass `undef` as the value.
+To remove a var pass `undef` as the value.
 
-Globals must have unique names.
-You can't have different reference types with the same name like `$var` and `@var`.
-When adding a global variable, if one by the same name already exists, it will be replaced.
+If the value is not a reference it will be a constant in the templating package.
 
 ## define
 

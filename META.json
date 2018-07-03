@@ -22,7 +22,6 @@
       },
       "runtime" : {
          "requires" : {
-            "Alias" : "2.2",
             "perl" : "5.020"
          }
       },

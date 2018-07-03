@@ -58,35 +58,36 @@ is $plate->serve(\"<one>\\\n<two>\n<three>\\\n"),
 "<one><two>\n<three>",
 'Remove escaped newlines';
 
-$plate->set(globals => {
-        var1 => 'String',
-        var2 => ['Array'],
-        var3 => {a => 'Hash'},
-        var4 => $plate,
+$plate->set(vars => {
+        '$var' => \'String',
+        '@var' => ['Array'],
+        '%var' => {a => 'Hash'},
+        obj    => \$plate,
+        CONST  => 1,
     });
-is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %> <% ref $var4 %>'),
-'String Array Hash Plate',
-'Set & use globals';
+is $plate->serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %>'),
+'String Array Hash Plate 1',
+'Set & use vars';
 
 $plate->set(package => 'Some::Where');
-is $plate->serve(\'<% $var1 %> <% $var2[0] %> <% $var3{a} %> <% ref $Some::Where::var4 %>'),
-'String Array Hash Plate',
-'Set a new package name & use globals';
+is $plate->serve(\'<% $var %> <% $var[0] %> <% $Some::Where::var{a} %> <% Plate::Template::CONST %>'),
+'String Array Hash 1',
+'Set a new package name & use the same vars';
 
-ok $plate->global(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a global function';
+ok $plate->var(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a local function';
 is $plate->serve(\'<% trim "  Hello World\n" %>'),
 'Hello World',
-'Call a global function';
+'Call a local function';
 
-$plate->global(var1 => undef);
-is $plate->serve(\'<% $var1 %>'),
+$plate->var('$var' => undef);
+is $plate->serve(\'<% $var %>'),
 '',
-'Remove a global';
+'Remove a var';
 
-$plate->set(globals => undef);
-is $plate->serve(\'<% "@var2" %>'),
-'',
-'Remove all globals';
+$plate->set(vars => undef);
+is $plate->serve(\'<% @var %>'),
+'0',
+'Remove all vars';
 
 $plate->filter(upper => sub { uc $_[0] });
 is $plate->serve(\'<% "Hello World" |upper %>'),

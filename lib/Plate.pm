@@ -2,9 +2,14 @@ use 5.020;
 use warnings;
 package Plate 0.1;
 
-use Alias ();
 use Carp 'croak';
 use File::Spec;
+use Scalar::Util;
+use XSLoader;
+
+BEGIN {
+    XSLoader::load __PACKAGE__, $Plate::VERSION;
+}
 
 =head1 NAME
 
@@ -352,9 +357,6 @@ sub new {
         filters => {
             html => \&_basic_html_filter,
         },
-        globals => {
-            content => \&content,
-        },
         init => '',
         io_layers => ':encoding(UTF-8)',
         keep_undef => undef,
@@ -366,6 +368,7 @@ sub new {
         static => undef,
         suffix => '.plate',
         umask => 077,
+        vars => {},
     }, $class;
     $self->set(@_) if @_;
     $self;
@@ -393,9 +396,9 @@ C<$content> may also be a CODE ref which should return the content directly.
 
 sub serve { shift->serve_with(undef, @_) }
 sub serve_with {
-    local($Alias::AttrPrefix, $Plate::_s) = ($_[0]{package}.'::', shift);
-    Alias::attr $$Plate::_s{globals};
+    local $Plate::_s = shift;
     my($_c, $tmpl) = (shift // \&_empty, shift);
+    _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
     local @Plate::_c = ref $_c eq 'CODE' ? $_c : ref $_c eq 'SCALAR' ? _compile $$_c : _sub $_c;
 
     my $sub = ref $tmpl eq 'SCALAR'
@@ -436,28 +439,37 @@ sub filter {
     $$self{filters}{$name} = $code;
 }
 
-=head2 global
+=head2 var
 
-    $plate->global(var => $var);
-    $plate->global(hash => \%hash);
-    $plate->global(array => \%array);
-    $plate->global(func => \&func);
+    $plate->var('$var' => \$var);
+    $plate->var('%hash' => \%hash);
+    $plate->var('@array' => \@array);
+    $plate->var(func => \&func);
+    $plate->var(CONST => 123);
 
-Import a new variable into the templating package for use by all templates.
+Import a new local variable into the templating package for use by all templates.
 All templates will have access to these variables even under C<use strict>.
 
-To remove a global pass C<undef> as the value.
+To remove a var pass C<undef> as the value.
 
-Globals must have unique names.
-You can't have different reference types with the same name like C<$var> and C<@var>.
-When adding a global variable, if one by the same name already exists, it will be replaced.
+If the value is not a reference it will be a constant in the templating package.
 
 =cut
 
-sub global {
+my %sigil = (
+    ARRAY => '@',
+    CODE => '&',
+    GLOB => '*',
+    HASH => '%',
+);
+sub var {
     my($self, $name, $ref) = @_;
 
-    defined $ref ? $$self{globals}{$name} = $ref : delete $$self{globals}{$name};
+    defined $ref or return delete $$self{vars}{$name};
+
+    my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
+    $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
+    $$self{vars}{$name} = $ref;
 }
 
 =head2 define
@@ -480,8 +492,8 @@ or all templates if the name is C<undef>.
 sub define {
     delete $_[0]{mod}{$_[1]} if $_[0]{mod};
     $_[0]{mem}{$_[1]} = ref $_[2] eq 'CODE' ? $_[2] : do {
-        local($Alias::AttrPrefix, $Plate::_s, @Plate::_c) = ($_[0]{package}.'::', $_[0]);
-        Alias::attr $$Plate::_s{globals};
+        local($Plate::_s, @Plate::_c) = $_[0];
+        _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
         _compile $_[2], $_[1];
     };
 }
@@ -550,8 +562,8 @@ sub set {
             }
         } elsif ($k =~ /^(?:(?:cache_)?suffix|io_layers)$/) {
             $v //= '';
-        } elsif ($k eq 'filters' or $k eq 'globals') {
-            my $method = substr $k, 0, 6;
+        } elsif ($k eq 'filters' or $k eq 'vars') {
+            my $method = substr $k, 0, -1;
             if (defined $v) {
                 ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
                 $self->$method($_ => $$v{$_}) for keys %$v;

@@ -39,19 +39,19 @@ PLATE
 '<test @_="test args"><inner @_="test args">this &amp; that</inner></test>',
 'Render a plate with lexical content';
 
-$plate->define(test => '<test><% &content %></test>');
+$plate->define(test => '<test><% &Plate::content %></test>');
 is $plate->serve(\<<'PLATE', 'this', '&', 'that'),
 <&| test, @_ &><inner><% "@_" %></inner></&>\
 PLATE
 '<test>&lt;inner&gt;this &amp;amp; that&lt;/inner&gt;</test>',
-'Render a plate with content using &content';
+'Render a plate with content using &Plate::content';
 
 is $plate->serve(\'<& test, 1..3 &>'),
 '<test></test>',
-'Render a plate without content using &content';
+'Render a plate without content using &Plate::content';
 
 $plate->define(a => '<a><&| b, @_ &>x</&></a>');
-$plate->define(b => '<b><&| c, @_ &>+<% &content %>+</&></b>');
+$plate->define(b => '<b><&| c, @_ &>+<% &Plate::content %>+</&></b>');
 $plate->define(c => '<c><& _ &> <& _ &></c>');
 is $plate->serve('a'), '<a><b><c>+x+ +x+</c></b></a>', 'Multi-level nesting';
 
@@ -59,11 +59,11 @@ $plate->define(c => '<c><& _ &> <&| _ &>I<& _ &>I</&></c>');
 is $plate->serve('a'), '<a><b><c>+x+ +IxI+</c></b></a>', 'Multi-level nesting with injected content';
 
 $plate->define(a => '<a><&| b, @_ &><% chr 64 + $_[0] %></&></a>');
-$plate->define(b => '<b><&| c, @_ &>{<& _ &>"<% shift %>"<% &content %>}</&></b>');
+$plate->define(b => '<b><&| c, @_ &>{<& _ &>"<% shift %>"<% &Plate::content %>}</&></b>');
 $plate->define(c => <<'PLATE');
 <c>
 % for (1..3) {
-[<& _ &>"<% shift %>"<% &content %>]
+[<& _ &>"<% shift %>"<% &Plate::content %>]
 % }
 </c>\
 PLATE
