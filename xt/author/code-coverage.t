@@ -1,16 +1,13 @@
 #!perl
 use Test::More tests => 3;
 use Devel::Cover::DB;
+
+my @criteria = qw(subroutine statement branch);
 my $db = new Devel::Cover::DB db => 'cover_db';
-$db->merge_runs;
-my $cover = $db->cover;
-for my $file (sort $cover->items) {
-    my $crits = $cover->get($file);
-    for my $crit (qw(subroutine statement branch)) {
-        my @vals = $crits->$crit->values;
-        my $covered = grep $_, @vals;
-        $covered == @vals
-        ? pass "\u$crit coverage for $file is $covered/".scalar(@vals)
-        : fail "\u$crit coverage for $file is $covered/".scalar(@vals);
-    }
+merge_runs $db;
+calculate_summary $db map { $_ => 1 } @criteria;
+
+for (@criteria) {
+    my $cr = $$db{summary}{Total}{$_};
+    ok $$cr{covered} == $$cr{total}, sprintf "\u$_ coverage is %.3g%% (%d/%d)", @$cr{qw(percentage covered total)};
 }
