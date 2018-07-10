@@ -58,16 +58,18 @@ sub _parse_text {
     length $text ? "'$text'" : ();
 }
 sub _parse_cmnt {
-    $_[0] =~ /^#(?:\s*line\s+(\d+)\s*(?:\s("?)([^"]+)\g2)?\s*|.*)$/
+    my $cmnt = $_[0];
+    $cmnt =~ /^#(?:\s*line\s+(\d+)\s*(?:\s("?)([^"]+)\g2)?\s*|.*)$/
     ? defined $1
         ? defined $3
             ? "\n#line $1 $3"
             : "\n#line $1"
         : ''
-    : $_[0];
+    : $cmnt;
 }
 sub _parse_defn {
-    $_[0] =~ /\W/ ? "'".($_[0] =~ s/(\\|')/\\$1/gr)."'" : $_[0];
+    my $defn = $_[0];
+    $defn =~ /\W/ ? "'".($defn =~ s/(\\|')/\\$1/gr)."'" : $defn;
 }
 sub _parse_fltr {
     my $expr = $_[0];
@@ -104,7 +106,7 @@ sub _parse {
                 $stmt = 'local$Plate::_b='.(@expr ? join('.', splice @expr) : "''").';';
             }
             local $_[3] = ($_[1] == $re_pre && '%').'%def';
-            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn(my $def = $2)."}=\nsub{".&_parse.'};';
+            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($2)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $3) {
             # % ...
@@ -230,13 +232,13 @@ sub _cached_sub {
     return $_[0]{mem}{$_[1]} //= $_[0]->_load($_[1]) if $_[0]{static} or not exists $_[0]{mod}{$_[1]};
     my $mod = (stat $_[0]->_plate_file($_[1]))[9]
         or croak "Plate template '$_[1]' does not exist";
-    return $_[0]{mem}{$_[1]} if $_[0]{mod}{$_[1]} == $mod;
+    return $_[0]{mem}{$_[1]} //= $_[0]->_load($_[1], $mod) if $_[0]{mod}{$_[1]} == $mod;
     $_[0]{mem}{$_[1]} = $_[0]->_load($_[1], $mod);
 }
 sub _sub {
     $$Plate::_s{cache_code}
     ? $Plate::_s->_cached_sub($_[0])
-    : ($$Plate::_s{mem}{$_[0]} // $Plate::_s->_load($_[0]));
+    : $$Plate::_s{mem}{$_[0]} // $Plate::_s->_load($_[0]);
 }
 
 sub _empty {}
