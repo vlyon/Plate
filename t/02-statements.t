@@ -66,19 +66,14 @@ is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
 
-SKIP: {
-    skip 'Scope::Upper Required', 1 unless eval { require Scope::Upper };
+$plate->set(init => q{
+    Plate::_local_args(__PACKAGE__, shift) if @_;
+}, once => q{
+    no strict 'vars';
+}, keep_undef => 1);
 
-    $plate->set(init => q{
-        use Scope::Upper;
-        Scope::Upper::localize $_, (ref $_[0]{$_} or /^\$/) ? $_[0]{$_} : \$_[0]{$_} => Scope::Upper::UP for keys %{$_[0]};
-        shift;
-    }, once => q{
-        no strict 'vars';
-    }, keep_undef => 1);
-
-    $plate->define(empty => '');
-    is $plate->serve(\<<'PLATE', { empty => '', '@empty' => [''] }),
+$plate->define(empty => '');
+is $plate->serve(\<<'PLATE', { empty => '', '@empty' => [''] }),
 %%# Empty
 <%% '' %%>\
 <% $empty %>\
@@ -86,8 +81,7 @@ SKIP: {
 <&& empty &&>\
 %%# Empty
 PLATE
-    '',
-    'Empty template';
-}
+'',
+'Empty template';
 
 ok !$warned, 'No warnings';

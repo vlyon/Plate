@@ -13,6 +13,8 @@ void
 _local_vars(package,hashref)
 	char * package
 	HV   * hashref
+ALIAS:
+	_local_args = 1
 CODE:
 	char * key;
 	I32 klen, nlen;
@@ -35,9 +37,17 @@ CODE:
 			stype = SvTYPE(tmp);
 			if (stype == SVt_PVGV)
 				val = tmp;
+			else if (ix && (stype < SVt_PVAV || stype > SVt_PVCV)) {
+				goto new_ref;
+			}
 		}
 		else if ((stype = SvTYPE(val)) != SVt_PVGV) {
-			constant = TRUE;
+			if (ix) {
+				new_ref:
+				val = sv_2mortal(newRV(val));
+			} else {
+				constant = TRUE;
+			}
 		}
 
 		if (klen > 1 && (*key == '$' || *key == '@' || *key == '%' || *key == '&' || *key == '*')) {
