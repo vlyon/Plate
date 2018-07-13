@@ -88,6 +88,21 @@ sub _pre_line { '"\\\\\n%#line ".__LINE__."\n"' }
 sub _parse {
     my @expr;
     my $stmt;
+    my $fix_line_num;
+    my $expr2stmt = sub {
+        if (@expr) {
+            if (defined $stmt) {
+                $stmt .= '$Plate::_b.=';
+                $stmt .= _pre_line.'.' if $_[0] == $re_pre;
+            } else {
+                $stmt = 'local$Plate::_b=';
+            }
+            $stmt .= join('.', $_[1] ? splice @expr, 0, $fix_line_num : splice @expr).';';
+        } else {
+            $stmt //= q"local$Plate::_b='';";
+        }
+        undef $fix_line_num unless $_[1];
+    };
     while ($_[0] =~ /$_[1]/g) {
 
         if (length $1) {
@@ -97,33 +112,21 @@ sub _parse {
 
         if (defined $2) {
             # <%def ...>
-            if (defined $stmt) {
-                if (@expr) {
-                    unshift @expr, _pre_line if $_[1] == $re_pre;
-                    $stmt .= '$Plate::_b.='.join('.', splice @expr).';';
-                }
-            } else {
-                $stmt = 'local$Plate::_b='.(@expr ? join('.', splice @expr) : "''").';';
-            }
+            $expr2stmt->($_[1]);
             local $_[3] = ($_[1] == $re_pre && '%').'%def';
             $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($2)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $3) {
             # % ...
-            if (defined $stmt) {
-                if (@expr) {
-                    unshift @expr, _pre_line if $_[1] == $re_pre;
-                    $stmt .= '$Plate::_b.='.join('.', splice @expr).';';
-                }
-            } else {
-                $stmt = 'local$Plate::_b='.(@expr ? join('.', splice @expr) : "''").';';
-            }
+            $expr2stmt->($_[1]);
             $stmt .= _parse_cmnt $3;
             $stmt .= "\n";
 
         } elsif (defined $4) {
             # <% ... %>
-            push @expr, _parse_fltr "do{$4}", $5 // $$Plate::_s{auto_filter};
+            $expr2stmt->($_[1], 1) if $fix_line_num;
+            $fix_line_num = push @expr,
+            _parse_fltr "do{$4}", $5 // $$Plate::_s{auto_filter};
 
         } elsif (defined $7) {
             # <& ... &> or <&| ... &>
@@ -137,13 +140,17 @@ sub _parse {
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
                     : defined $args ? "Plate::content($args)" : '&Plate::content', $8;
+                    $expr2stmt->($_[1], 1) if $fix_line_num;
+                    $fix_line_num = @expr;
                     next;
                 }
                 $tmpl = defined $args ? "Plate::_r('$tmpl',($args)," : "Plate::_r('$tmpl',";
             } else {
                 $tmpl = "Plate::_r($7,";
             }
-            push @expr, _parse_fltr $tmpl.(defined $6 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $8;
+            $expr2stmt->($_[1], 1) if $fix_line_num;
+            $fix_line_num = push @expr,
+            _parse_fltr $tmpl.(defined $6 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $8;
 
         } else {
             # </%def> or </&> or \z
