@@ -35,7 +35,7 @@ sub warnings_are(&$;$) {
 
 use Plate;
 
-sub temp_files {qw(t/data/faulty.pl t/data/inner.pl t/data/outer.pl t/data/test.pl t/data/utf8.pl t/data/tmp.plate)}
+sub temp_files {qw(t/data/faulty.pl t/data/inner.pl t/data/outer.pl t/data/test.pl t/data/utf8.pl t/data/tmp.pl t/data/tmp.plate)}
 
 use utf8;
 binmode Test::More->builder->failure_output, ':utf8';
@@ -165,20 +165,19 @@ is $plate->serve('utf8'),
 "á¿\214È\207É­É­Ð¾ áº\206Ã¶Å\227ldâ\200¼",
 'Render without encoding';
 
-$plate = new Plate path => 't/data', static => 1;
-
 if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'abc';
     close $fh;
 }
-is $plate->serve('tmp'), 'abc', 'Serve plate cached in memory';
+$plate = new Plate path => 't', cache_path => 't', static => 1;
+is $plate->serve('data/tmp'), 'abc', 'Serve plate cached in memory';
 
 unlink 't/data/tmp.plate';
-is $plate->serve('tmp'), 'abc', 'Serve plate from memory cache without modification check';
+is $plate->serve('data/tmp'), 'abc', 'Serve plate from memory cache without modification check';
 
-$plate = new Plate path => 't/data', static => 0;
+$plate = new Plate path => 't/data';
 
-my $mod = time - 1;
+my $mod = time - 100;
 if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'abc';
     close $fh;
@@ -196,6 +195,8 @@ if (open my $fh, '>', 't/data/tmp.plate') {
 is $plate->serve('tmp'),
 'abc',
 'Serve plate from memory cache with modification check';
+
+$plate->set(cache_path => 't/data');
 
 utime undef, undef, 't/data/tmp.plate';
 is $plate->serve('tmp'),

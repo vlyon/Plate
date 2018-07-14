@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 31;
+use Test::More tests => 37;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -115,19 +115,35 @@ if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer
 like eval { $plate->serve('outer') } // $@,
 qr"^Can't read t/outer\.plate: No such file or directory ", 'Missing template to reload from';
 
-$plate->set(path => 't/data');
 if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer.pl: $!") {
     print $fh '{';
     close $fh;
 }
+$plate->set(path => 't/data');
 like eval { $plate->serve('outer') } // $@,
 qr/^syntax error /m, 'Error parsing cache file';
 
+is delete $$plate{mod}{outer}, undef, "Don't keep stat of faulty cache file";
+
+$plate->set(static => 1);
+like eval { $plate->serve('outer') } // $@,
+qr/^syntax error /m, 'Error parsing cache file (static mode)';
+
+is delete $$plate{mod}{outer}, undef, "Don't keep stat of faulty cache file (static mode)";
+
 chmod 0, 't/tmp_dir/outer.pl';
 like eval { $plate->serve('outer') } // $@,
-qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file';
-unlink 't/tmp_dir/outer.pl';
+qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file (static mode)';
 
+is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file (static mode)";
+
+$plate->set(static => undef);
+like eval { $plate->serve('outer') } // $@,
+qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file';
+
+is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file";
+
+unlink 't/tmp_dir/outer.pl';
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('outer') } // $@,
 qr"^Can't write \./t/tmp_dir/outer\.pl: No such file or directory", 'Error writing cache file';

@@ -199,6 +199,7 @@ sub _compile {
     $pl = _eval $line = $$Plate::_s{once}.'sub{'.$$Plate::_s{init}.$line.$pl.'}'
         or croak $@.'Plate compilation failed';
     _write $_[2], "use 5.020;use warnings;use utf8;package $$Plate::_s{package};$line" if defined $_[2];
+    $$Plate::_s{mod}{$_[3]} = $_[4] if defined $_[4];
     return $pl;
 }
 sub _make_cache_dir {
@@ -219,21 +220,26 @@ sub _cache_file {
 sub _load {
     my $plate = $_[0]->_plate_file($_[1]);
     my $cache = $_[0]->_cache_file($_[1]);
+    my $_n;
     if (defined $cache) {
-        if (-f $cache) {
-            my $_m = $_[0]{mod}{$_[1]} // (stat _)[9];
-            if ($_[0]{static} or $_m >= ($_[0]{mod}{$_[1]} = $_[2] // (stat $plate)[9] // croak "Can't read $plate: $!")) {
-                return do $cache // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
+        if ($_[0]{static}) {
+            return do $cache // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!" if -f $cache;
+            $plate // croak "Plate template '$_[1]' does not exist";
+        } else {
+            $_n = $_[2] // (stat $plate)[9] // croak "Can't read $plate: $!";
+            if (-f $cache and ($_[0]{mod}{$_[1]} // (stat _)[9]) >= $_n) {
+                my $sub = do $cache // croak $@ ? $@.'Plate compilation failed' : "Couldn't load $cache: $!";
+                $_[0]{mod}{$_[1]} //= $_n;
+                return $sub;
             }
         }
-        $plate // croak "Plate template '$_[1]' does not exist";
         $_[0]->_make_cache_dir($_[1]);
     } elsif (defined $plate) {
-        $_[0]{mod}{$_[1]} //= (stat $plate)[9] unless $_[0]{static};
+        $_n = (stat $plate)[9] unless $_[0]{static} or exists $_[0]{mod}{$_[1]};
     } else {
         croak "Plate template '$_[1]' does not exist";
     }
-    _compile $_[0]->_read($plate), $plate, $cache;
+    _compile $_[0]->_read($plate), $plate, $cache, $_[1], $_n;
 }
 sub _cached_sub {
     return $_[0]{mem}{$_[1]} //= $_[0]->_load($_[1]) if $_[0]{static} or not exists $_[0]{mod}{$_[1]};
