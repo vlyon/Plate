@@ -36,12 +36,12 @@ is $plate->serve(\'<% "<html> this & that" | html | html %>'),
 '&amp;lt;html&amp;gt; this &amp;amp; that',
 'Double filtered expression';
 
-$plate->set(keep_undef => 1);
+$plate->set(keep_undef => 1, chomp => undef);
 is $plate->serve(\'<% undef |%>'),
 undef,
 'Undefined expression is kept';
 
-$plate->set(keep_undef => undef);
+$plate->set(keep_undef => undef, chomp => 1);
 is $plate->serve(\'<% undef |html %>'),
 '',
 'Undefined expression is coerced to ""';

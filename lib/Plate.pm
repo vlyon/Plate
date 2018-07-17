@@ -35,25 +35,25 @@ Plate - Fast templating engine with support for embedded Perl
 =cut
 
 my $re_pre = qr'(.*?)(?:
-    ^<%%def\h+([\w/\.-]+)>(?:\n|\z)|
-    ^%%\h*(\N*?)\h*(?:\n|\z)|
+    ^<%%def\h+([\w/\.-]+)>(?:\R|\z)|
+    ^%%\h*(\V*?)\h*(?:\R|\z)|
     <%%\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?%%>|
     <&&(\|)?\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?&&>|
-    </(%%def)>(?:\n|\z)|
+    </(%%def)>(?:\R|\z)|
     </(&&)>|\z
 )'mosx;
 my $re_run = qr'(.*?)(?:
-    ^<%def\h+([\w/\.-]+)>(?:\n|\z)|
-    ^%\h*(\N*?)\h*(?:\n|\z)|
+    ^<%def\h+([\w/\.-]+)>(?:\R|\z)|
+    ^%\h*(\V*?)\h*(?:\R|\z)|
     <%\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?%>|
     <&(\|)?\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?&>|
-    </(%def)>(?:\n|\z)|
+    </(%def)>(?:\R|\z)|
     </(&)>|\z
 )'mosx;
 
 sub _parse_text {
     my $text = $_[0];
-    $_[2] = $text =~ s/\\\n//g if $_[1] == $re_run;
+    $_[2] = $text =~ s/\\\R//g if $_[1] == $re_run;
     $text =~ s/(\\|')/\\$1/g;
     length $text ? "'$text'" : ();
 }
@@ -168,6 +168,7 @@ sub _parse {
                 unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
                 $stmt.join('.', '$Plate::_b', @expr);
             } : @expr ? join('.', @expr) : "''";
+            $pl .= '=~s/\R\z//r' if $_[1] == $re_run and $$Plate::_s{chomp};
             $pl .= "\n" if defined $9;
             return $pl;
         }
@@ -320,6 +321,10 @@ If the directory does not exist, it will attempt to create it using the C<umask>
 
 Compiled templates stored on the filesystem will have this suffix appended.
 
+=item C<< chomp => 1 >>
+
+If set to a true value, the final newline in every template will be removed.
+
 =item C<< encoding => 'UTF-8' >>
 
 Set this to the encoding of your template files.
@@ -369,6 +374,7 @@ sub new {
         cache_code => 1,
         cache_path => undef,
         cache_suffix => '.pl',
+        chomp => 1,
         filters => {
             html => \&_basic_html_filter,
         },
@@ -591,7 +597,7 @@ sub set {
         } elsif ($k eq 'package') {
             defined $v and $v =~ /^[A-Z_a-z][0-9A-Z_a-z]*(?:::[0-9A-Z_a-z]+)*$/
                 or croak "Invalid package name '".($v // '')."'";
-        } elsif ($k !~ /^(?:auto_filter|cache_code|keep_undef|max_call_depth|static|umask)$/) {
+        } elsif ($k !~ /^(?:auto_filter|cache_code|chomp|keep_undef|max_call_depth|static|umask)$/) {
             croak "Invalid setting '$k'";
         }
         $$self{$k} = $v;

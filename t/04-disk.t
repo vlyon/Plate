@@ -53,6 +53,7 @@ this & that
 this &amp; that
 this &amp;amp; that
 OUTPUT
+chomp $output;
 
 my $plate = new Plate path => 't', cache_path => '';
 like $$plate{cache_path}, qr/^\./, 'Empty cache_path set to relative path';
@@ -126,7 +127,7 @@ warnings_are {
 
 isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
 
-is $plate->serve_with('outer', 'outer'), "[\n[\n]]", 'Serve with a layout';
+is $plate->serve_with('outer', 'outer'), "[\n[\n\n]\n]", 'Serve with a layout';
 
 $plate = new Plate path => undef, cache_path => 't/data';
 is $$plate{static}, 'auto', 'Static mode is automatic whithout path';

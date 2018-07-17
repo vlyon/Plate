@@ -27,7 +27,7 @@ args=<% scalar @_ %>
 no args
 % }
 PLATE
-"no args\n",
+'no args',
 'Statement lines';
 
 is $plate->serve(\<<'PLATE', 1..3),
@@ -39,7 +39,7 @@ no args
 % }
 % # This is a comment on line 7
 PLATE
-"args=3\n",
+'args=3',
 'Comment lines';
 
 is $plate->serve(\"% if (1) {\nYES\n% }"), $plate->serve(\"% if (1) {\nYES\n% }\n"), 'Ignore final newline if last line is a statement';
