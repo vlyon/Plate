@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 38;
+use Test::More tests => 39;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -163,5 +163,16 @@ $plate->set(path => undef, cache_path => 't/tmp_dir', umask => 0777);
 like eval { $plate->set(path => 't/tmp_dir') } // $@,
 qr"^Can't set path to t/tmp_dir/: Not accessable", 'Error on inaccessable path';
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
+
+$plate = new Plate path => 't/data';
+$plate->define(line_test => "<& utf8 &>\nLine 2\n<& faulty &>\nLine 4\n");
+is eval { $plate->serve('line_test') } // $@, <<''
+Bareword "This" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
+Bareword "template" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
+Bareword "is" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
+Bareword "broken" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
+Plate compilation failed at line_test line 3.
+
+, 'Correct line number';
 
 ok !$warned, 'No warnings';

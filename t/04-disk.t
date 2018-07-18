@@ -77,10 +77,7 @@ ok !$plate->can_serve('missing'), "Plate 'missing' can't be served";
 
 ok $plate->does_exist('faulty'), "Plate 'faulty' does exist";
 ok !$plate->can_serve('faulty'), "Plate 'faulty' can't be served";
-like $@, qr'^Bareword "This" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
-Bareword "template" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
-Bareword "is" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
-Bareword "broken" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
+like $@, qr'Bareword "broken" not allowed .*
 Plate compilation failed ', 'Expected compilation error';
 
 $plate->define(defined => 'defined');

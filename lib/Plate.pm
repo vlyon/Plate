@@ -110,6 +110,7 @@ sub _parse {
         if (length $1) {
             push @expr, _parse_text $1, $_[1], my $add_lines;
             (@expr ? $expr[-1] : defined $stmt ? $stmt : ($expr[0] = "''")) .= "\n" x $add_lines if $add_lines;
+            $fix_line_num = @expr if $fix_line_num;
         }
 
         if (defined $2) {
@@ -144,24 +145,22 @@ sub _parse {
         } elsif (defined $9) {
             # <& ... &> or <&| ... &>
             my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
+            $expr2stmt->($_[1], 1) if $fix_line_num;
             if (defined $tmpl) {
                 if ($tmpl eq '_') {
-                    push @expr, _parse_fltr defined $8
+                    $fix_line_num = push @expr, _parse_fltr defined $8
                     ? do {
                         $args = defined $args ? "($args)" : '';
                         local $_[3] = $_[1] == $re_pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
                     : defined $args ? "Plate::content($args)" : '&Plate::content', $10;
-                    $expr2stmt->($_[1], 1) if $fix_line_num;
-                    $fix_line_num = @expr;
                     next;
                 }
                 $tmpl = defined $args ? "Plate::_r('$tmpl',($args)," : "Plate::_r('$tmpl',";
             } else {
                 $tmpl = "Plate::_r($9,";
             }
-            $expr2stmt->($_[1], 1) if $fix_line_num;
             $fix_line_num = push @expr,
             _parse_fltr $tmpl.(defined $8 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $10;
 
