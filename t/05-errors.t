@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 37;
+use Test::More tests => 38;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -42,6 +42,9 @@ qr"^\QInvalid vars (not a hash reference) ", "Can't set invalid vars";
 
 like eval { new Plate package => 'Not:Valid' } // $@,
 qr"^Invalid package name ", "Can't set invalid package name";
+
+like eval { new Plate package => undef } // $@,
+qr"^Invalid package name ", "Can't set undefined package name";
 
 my $plate = new Plate cache_code => undef;
 

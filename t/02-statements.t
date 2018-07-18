@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 11;
+use Test::More tests => 17;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -20,17 +20,17 @@ $SIG{__WARN__} = sub {
 
 my $plate = new Plate;
 
-is $plate->serve(\<<'PLATE'),
+is $plate->serve(\<<''),
 % if (@_) {
 args=<% scalar @_ %>
 % } else {
 no args
 % }
-PLATE
+
 'no args',
 'Statement lines';
 
-is $plate->serve(\<<'PLATE', 1..3),
+is $plate->serve(\<<'', 1..3),
 %# This is a comment on line 1
 % if (@_) {
 args=<% scalar @_ %>
@@ -38,30 +38,30 @@ args=<% scalar @_ %>
 no args
 % }
 % # This is a comment on line 7
-PLATE
+
 'args=3',
 'Comment lines';
 
 is $plate->serve(\"% if (1) {\nYES\n% }"), $plate->serve(\"% if (1) {\nYES\n% }\n"), 'Ignore final newline if last line is a statement';
 
-my $fail = eval { $plate->serve(\<<'PLATE') };
+my $fail = eval { $plate->serve(\<<'') };
 % if (1) {
-PLATE
+
 is $fail, undef, 'Compilation failed';
 like $@, qr/^Missing right curly or square bracket at .*^Plate compilation failed at /ms,
 'Compilation failure message';
 
-$fail = eval { $plate->serve(\<<'PLATE') };
+$fail = eval { $plate->serve(\<<'') };
 %% if (1) {
-PLATE
+
 is $fail, undef, 'Precompilation failed';
 like $@, qr/^Missing right curly or square bracket at .*^Plate precompilation failed at /ms,
 'Precompilation failure message';
 
-$fail = eval { $plate->serve(\<<'PLATE') };
+$fail = eval { $plate->serve(\<<'') };
 %% my $precomp_var;
 % $precomp_var = 1;
-PLATE
+
 is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
@@ -73,15 +73,67 @@ $plate->set(init => q{
 }, keep_undef => 1);
 
 $plate->define(empty => '');
-is $plate->serve(\<<'PLATE', { empty => '', '@empty' => [''] }),
+is $plate->serve(\<<'', { empty => '', '@empty' => [''] }),
 %%# Empty
 <%% '' %%>\
 <% $empty %>\
 <% @empty %>\
 <&& empty &&>\
 %%# Empty
-PLATE
+
 '',
 'Empty template';
+
+$plate->set(init => undef, once => undef);
+is $plate->serve(\<<''),
+<%perl>
+my $var = 123;
+if ($var) {
+</%perl>
+Yes
+<%perl>
+} else {
+</%perl>
+No
+<%perl>
+}
+$var == 123 or warn '$var has changed';
+</%perl>
+
+'Yes',
+'Execute %perl blocks';
+
+$fail = eval { $plate->serve(\<<'') };
+<%perl>
+
+is $fail, undef, 'Compilation failed';
+like $@, qr"^Opening <%perl...> tag without closing </%perl> tag at ",
+'Compilation failure for missing closing tag';
+
+is $plate->serve(\<<''),
+<%%perl>
+# This is precompiled
+my $var = 123;
+if ($var) {
+</%%perl>
+Yes
+<%%perl>
+} else {
+</%%perl>
+No
+<%%perl>
+}
+$var == 123 or warn '$var has changed';
+</%%perl>
+
+'Yes',
+'Execute %%perl blocks';
+
+$fail = eval { $plate->serve(\<<'') };
+</%%perl>
+
+is $fail, undef, 'Precompilation failed';
+like $@, qr"^Closing </%%perl> tag without opening <%%perl...> tag at ",
+'Precompilation failure for missing opening tag';
 
 ok !$warned, 'No warnings';

@@ -35,19 +35,21 @@ Plate - Fast templating engine with support for embedded Perl
 =cut
 
 my $re_pre = qr'(.*?)(?:
-    ^<%%def\h+([\w/\.-]+)>(?:\R|\z)|
     ^%%\h*(\V*?)\h*(?:\R|\z)|
+    ^<%%(perl)>(?:\R|\z)(?:(.*?)^</%%\g-2>(?:\R|\z))?|
+    ^<%%def\h+([\w/\.-]+)>(?:\R|\z)|
     <%%\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?%%>|
     <&&(\|)?\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?&&>|
-    </(%%def)>(?:\R|\z)|
+    </(%%def|%%perl)>(?:\R|\z)|
     </(&&)>|\z
 )'mosx;
 my $re_run = qr'(.*?)(?:
-    ^<%def\h+([\w/\.-]+)>(?:\R|\z)|
     ^%\h*(\V*?)\h*(?:\R|\z)|
+    ^<%(perl)>(?:\R|\z)(?:(.*?)^</%\g-2>(?:\R|\z))?|
+    ^<%def\h+([\w/\.-]+)>(?:\R|\z)|
     <%\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?%>|
     <&(\|)?\h*(.+?)\h*(?:\|\h*(|\w+(?:\h*\|\h*\w+)*)\h*)?&>|
-    </(%def)>(?:\R|\z)|
+    </(%def|%perl)>(?:\R|\z)|
     </(&)>|\z
 )'mosx;
 
@@ -111,56 +113,67 @@ sub _parse {
         }
 
         if (defined $2) {
+            # % ...
+            $expr2stmt->($_[1]);
+            $stmt .= _parse_cmnt $2;
+            $stmt .= "\n";
+
+        } elsif (defined $3) {
+            # <%perl>
+            $expr2stmt->($_[1]);
+            unless (defined $4) {
+                my $line = 1 + $stmt =~ y/\n//;
+                $line = "$_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
+                my $tag = ($_[1] == $re_pre && '%').'%'.$3;
+                croak "Opening <$tag...> tag without closing </$tag> tag at $line";
+            }
+            $stmt .= "\n$4\n";
+
+        } elsif (defined $5) {
             # <%def ...>
             $expr2stmt->($_[1]);
             local $_[3] = ($_[1] == $re_pre && '%').'%def';
-            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($2)."}=\nsub{".&_parse.'};';
+            $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($5)."}=\nsub{".&_parse.'};';
 
-        } elsif (defined $3) {
-            # % ...
-            $expr2stmt->($_[1]);
-            $stmt .= _parse_cmnt $3;
-            $stmt .= "\n";
-
-        } elsif (defined $4) {
+        } elsif (defined $6) {
             # <% ... %>
             $expr2stmt->($_[1], 1) if $fix_line_num;
             $fix_line_num = push @expr,
-            _parse_fltr "do{$4}", $5 // $$Plate::_s{auto_filter};
+            _parse_fltr "do{$6}", $7 // $$Plate::_s{auto_filter};
 
-        } elsif (defined $7) {
+        } elsif (defined $9) {
             # <& ... &> or <&| ... &>
-            my($tmpl, $args) = do { $7 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
+            my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
             if (defined $tmpl) {
                 if ($tmpl eq '_') {
-                    push @expr, _parse_fltr defined $6
+                    push @expr, _parse_fltr defined $8
                     ? do {
                         $args = defined $args ? "($args)" : '';
                         local $_[3] = $_[1] == $re_pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
-                    : defined $args ? "Plate::content($args)" : '&Plate::content', $8;
+                    : defined $args ? "Plate::content($args)" : '&Plate::content', $10;
                     $expr2stmt->($_[1], 1) if $fix_line_num;
                     $fix_line_num = @expr;
                     next;
                 }
                 $tmpl = defined $args ? "Plate::_r('$tmpl',($args)," : "Plate::_r('$tmpl',";
             } else {
-                $tmpl = "Plate::_r($7,";
+                $tmpl = "Plate::_r($9,";
             }
             $expr2stmt->($_[1], 1) if $fix_line_num;
             $fix_line_num = push @expr,
-            _parse_fltr $tmpl.(defined $6 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $8;
+            _parse_fltr $tmpl.(defined $8 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $10;
 
         } else {
-            # </%def> or </&> or \z
-            my $tag = $9 // $10 // '';
+            # </%...> or </&> or \z
+            my $tag = $11 // $12 // '';
             if ($tag ne $_[3]) {
                 my $line = 1 + join('', $stmt // '', @expr) =~ y/\n//;
-                $line = "at $_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
+                $line = "$_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
                 croak $tag
-                ? "Closing </$tag> tag without opening <$tag...> tag $line"
-                : "Opening <$_[3]...> tag without closing </$_[3]> tag $line";
+                ? "Closing </$tag> tag without opening <$tag...> tag at $line"
+                : "Opening <$_[3]...> tag without closing </$_[3]> tag at $line";
             }
 
             my $pl = defined $stmt
@@ -169,7 +182,7 @@ sub _parse {
                 $stmt.join('.', '$Plate::_b', @expr);
             } : @expr ? join('.', @expr) : "''";
             $pl .= '=~s/\R\z//r' if $_[1] == $re_run and $$Plate::_s{chomp};
-            $pl .= "\n" if defined $9;
+            $pl .= "\n" if defined $11;
             return $pl;
         }
     }
@@ -581,7 +594,7 @@ sub set {
                 $v = File::Spec->catfile('.', $v) unless File::Spec->file_name_is_absolute($v);
                 $v = substr $v, 0, -1;
             }
-        } elsif ($k =~ /^(?:(?:cache_)?suffix|io_layers)$/) {
+        } elsif ($k =~ /^(?:(?:cache_)?suffix|init|io_layers|once)$/) {
             $v //= '';
         } elsif ($k eq 'filters' or $k eq 'vars') {
             my $method = substr $k, 0, -1;
@@ -592,8 +605,6 @@ sub set {
                 undef %{$$self{$k}};
             }
             next;
-        } elsif ($k eq 'init' or $k eq 'once') {
-            $v //= '';
         } elsif ($k eq 'package') {
             defined $v and $v =~ /^[A-Z_a-z][0-9A-Z_a-z]*(?:::[0-9A-Z_a-z]+)*$/
                 or croak "Invalid package name '".($v // '')."'";
