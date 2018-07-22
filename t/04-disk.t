@@ -23,7 +23,7 @@ sub warnings_are(&$;$) {
     };
     $sub->();
     my $ok = @got == @$exp;
-    $ok &&= $got[$_] eq $$exp[$_] for 0..$#got;
+    $ok &&= $got[$_] =~ $$exp[$_] for 0..$#got;
     ok $ok, $out
         or do {
         diag "found warning: $_" for @got;
@@ -55,12 +55,13 @@ this &amp;amp; that
 OUTPUT
 chomp $output;
 
+is Plate::_path(''), '', 'Empty path remains empty';
+
 my $plate = new Plate path => 't', cache_path => '';
 like $$plate{cache_path}, qr/^\./, 'Empty cache_path set to relative path';
 
 $plate->set(cache_path => 't/tmp_dir', umask => 027);
 ok -d 't/tmp_dir', 'Created cache_path directory';
-is sprintf('%04o', 0777 & (stat _)[2]), '0750', 'Created cache_path with umask permissions';
 
 ok $plate->does_exist('data/test'), "Plate 'data/test' does exist";
 ok $plate->can_serve('data/test'), "Plate 'data/test' can be served";
@@ -91,8 +92,8 @@ ok !$plate->can_serve('defined'), "Undefined plate can't be served";
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Expected ouput';
 } [
-    "inner-2-warn at t/data/inner.plate line 2.\n",
-    "test-6-warn at t/data/test.plate line 6.\n",
+    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
+    qr"^test-6-warn at t.data.test\.plate line 6\.$",
 ], 'Expected warnings';
 
 ok -f 't/data/inner.pl' && -f 't/data/outer.pl' && -f 't/data/test.pl', 'Cache files created';
@@ -103,8 +104,8 @@ $plate->undefine;
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache';
 } [
-    "inner-2-warn at t/data/inner.plate line 2.\n",
-    "test-6-warn at t/data/test.plate line 6.\n",
+    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
+    qr"^test-6-warn at t.data.test\.plate line 6\.$",
 ], 'Same warnings from disk cache';
 
 is +(stat 't/data/test.pl')[9], 946684800, "Cache wasn't updated";
@@ -118,8 +119,8 @@ is ref $plate->undefine('test'), 'CODE', 'Undefine returns the CODE ref';
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output after undefine';
 } [
-    "inner-2-warn at t/data/inner.plate line 2.\n",
-    "test-6-warn at t/data/test.plate line 6.\n",
+    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
+    qr"^test-6-warn at t.data.test\.plate line 6\.$",
 ], 'Same warnings after undefine';
 
 isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
@@ -132,8 +133,8 @@ is $$plate{static}, 'auto', 'Static mode is automatic whithout path';
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache only';
 } [
-    "inner-2-warn at t/data/inner.plate line 2.\n",
-    "test-6-warn at t/data/test.plate line 6.\n",
+    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
+    qr"^test-6-warn at t.data.test\.plate line 6\.$",
 ], 'Same warnings from disk cache only';
 
 $plate = new Plate path => 't/data', cache_code => undef;
@@ -167,7 +168,7 @@ if (open my $fh, '>', 't/data/tmp.plate') {
     print $fh 'abc';
     close $fh;
 }
-$plate = new Plate path => 't', cache_path => 't', static => 1;
+$plate = new Plate path => './t', cache_path => './t', static => 1;
 is $plate->serve('data/tmp'), 'abc', 'Serve plate cached in memory';
 
 unlink 't/data/tmp.plate';

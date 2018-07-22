@@ -7,6 +7,8 @@ use File::Spec;
 use Scalar::Util;
 use XSLoader;
 
+use constant WINDOWS => $^O eq 'MSWin32';
+
 BEGIN {
     XSLoader::load __PACKAGE__, $Plate::VERSION;
 }
@@ -291,6 +293,15 @@ sub _r {
 }
 sub _f {
     goto &{$$Plate::_s{filters}{+shift}};
+}
+
+sub _path {
+    my $path = $_[0];
+    my $vol = WINDOWS ? $path =~ s'^[\\/]{2}(?=[^\\/])'' ? '//' : $path =~ s'^([a-zA-Z]:)'' ? ucfirst $1 : '' : '';
+    length $path or return (length $vol or not $_[1]) ? $vol : './';
+    my @dir = grep $_ ne '.', split WINDOWS ? qr'[\\/]+' : qr'/+', $path.'/', -1;
+    $vol = './' if $_[1] and not length $vol and (length $dir[0] or @dir == 1);
+    $vol.join('/', @dir);
 }
 
 {
@@ -584,15 +595,10 @@ sub set {
             $k = 'io_layers';
             $v = length $v ? $v eq 'utf8' ? ':utf8' : ":encoding($v)" : '';
         } elsif ($k eq 'path') {
-            $v = substr File::Spec->catfile($v, 'x'), 0, -1 if length $v;
+            $v = _path $v if length $v;
         } elsif ($k eq 'cache_path') {
-            if (defined $v) {
-                $v = '.' unless length $v;
-                $v = File::Spec->catfile($v, 'x');
-                # A relative cache_path must start with "./" to prevent searching @INC when sourcing the file
-                $v = File::Spec->catfile('.', $v) unless File::Spec->file_name_is_absolute($v);
-                $v = substr $v, 0, -1;
-            }
+            # A relative cache_path must start with "./" to prevent searching @INC when sourcing the file
+            $v = _path $v, 1 if defined $v;
         } elsif ($k =~ /^(?:(?:cache_)?suffix|init|io_layers|once)$/) {
             $v //= '';
         } elsif ($k eq 'filters' or $k eq 'vars') {

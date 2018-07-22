@@ -18,6 +18,12 @@ $SIG{__WARN__} = sub {
     goto &diag;
 };
 
+END {
+    unlink 't/tmp_dir/outer.pl';
+    rmdir 't/tmp_dir/data';
+    rmdir 't/tmp_dir';
+}
+
 like eval { new Plate invalid => 1 } // $@,
 qr"^\QInvalid setting 'invalid' at ", "Can't set invalid settings";
 
@@ -135,23 +141,27 @@ qr/^syntax error /m, 'Error parsing cache file (static mode)';
 is delete $$plate{mod}{outer}, undef, "Don't keep stat of faulty cache file (static mode)";
 
 chmod 0, 't/tmp_dir/outer.pl';
-like eval { $plate->serve('outer') } // $@,
-qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file (static mode)';
+SKIP: {
+    skip "Can't chmod 0 to test unreability", 4 if -r 't/tmp_dir/outer.pl';
 
-is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file (static mode)";
+    like eval { $plate->serve('outer') } // $@,
+    qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file (static mode)';
 
-$plate->set(static => undef);
-like eval { $plate->serve('outer') } // $@,
-qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file';
+    is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file (static mode)";
 
-is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file";
+    $plate->set(static => undef);
+    like eval { $plate->serve('outer') } // $@,
+    qr"^Couldn't load \./t/tmp_dir/outer\.pl: ", 'Error reading cache file';
+
+    is delete $$plate{mod}{outer}, undef, "Don't keep stat of unreadable cache file";
+}
 
 unlink 't/tmp_dir/outer.pl';
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('outer') } // $@,
-qr"^Can't write \./t/tmp_dir/outer\.pl: No such file or directory", 'Error writing cache file';
+qr"^Can't write .*outer\.pl: No such file or directory", 'Error writing cache file';
 
-$plate->set(path => '', cache_path => '');
+$plate->set(path => '', cache_path => '.');
 like eval { $plate->serve('test') } // $@,
 qr"^Can't read test\.plate: No such file or directory ", 'Error on non-existent template';
 
@@ -160,19 +170,22 @@ like eval { $plate->serve('test') } // $@,
 qr"^Plate template 'test' does not exist ", 'Error on undefined path & cache_path';
 
 $plate->set(path => undef, cache_path => 't/tmp_dir', umask => 0777);
-like eval { $plate->set(path => 't/tmp_dir') } // $@,
-qr"^Can't set path to t/tmp_dir/: Not accessable", 'Error on inaccessable path';
+SKIP: {
+    skip "Can't chmod 0 to test unreability", 1 if -r 't/tmp_dir';
+
+    like eval { $plate->set(path => 't/tmp_dir') } // $@,
+    qr"^Can't set path to t/tmp_dir/: Not accessable", 'Error on inaccessable path';
+}
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 
 $plate = new Plate path => 't/data';
 $plate->define(line_test => "<& utf8 &>\nLine 2\n<& faulty &>\nLine 4\n");
-is eval { $plate->serve('line_test') } // $@, <<''
-Bareword "This" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
-Bareword "template" not allowed while "strict subs" in use at t/data/faulty.plate line 2.
-Bareword "is" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
-Bareword "broken" not allowed while "strict subs" in use at t/data/faulty.plate line 4.
-Plate compilation failed at line_test line 3.
-
-, 'Correct line number';
+like eval { $plate->serve('line_test') } // $@,
+qr'^Bareword "This" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
+Bareword "template" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
+Bareword "is" not allowed while "strict subs" in use at t.data.faulty\.plate line 4\.
+Bareword "broken" not allowed while "strict subs" in use at t.data.faulty\.plate line 4\.
+Plate compilation failed at line_test line 3\.
+', 'Correct line number';
 
 ok !$warned, 'No warnings';
