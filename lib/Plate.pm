@@ -223,18 +223,31 @@ sub _eval {
     eval "package $$Plate::_s{package};$_[0]";
 }
 sub _compile {
-    my($file, $line) = length $_[1] ? ($_[1], "\n#line 1 $_[1]\n") : ('-', '');
+    my($pl, $file) = @_;
+    my($line, $sub);
+    if (length $file) {
+        $line = "\n#line 1 $_[1]\n";
+    } else {
+        $file = '-';
+        $line = '';
+    }
     local @Plate::_l;
-    my $pl = _eval 'sub{'.$line._parse($_[0], $re_pre, $file, '').'}'
+    # Precompile
+    $pl = _parse $pl, $re_pre, $file, '';
+    $pl = "sub{$line$pl}";
+    $sub = _eval $pl
         or croak $@.'Plate precompilation failed';
-    defined($pl = eval { $pl->() })
+    defined($pl = eval { $sub->() })
         or croak $@.'Plate precompilation failed';
+    # Compile
     $pl = _parse $pl, $re_run, $file, '';
-    $pl = _eval $line = $$Plate::_s{once}.'sub{'.$$Plate::_s{init}.$line.$pl.'}'
+    $pl = "$$Plate::_s{once}sub{$$Plate::_s{init}$line$pl}";
+    $sub = _eval $pl
         or croak $@.'Plate compilation failed';
-    _write $_[2], "use 5.020;use warnings;use utf8;package $$Plate::_s{package};$line" if defined $_[2];
+    # Cache
+    _write $_[2], "use 5.020;use warnings;use utf8;package $$Plate::_s{package};$pl" if defined $_[2];
     $$Plate::_s{mod}{$_[3]} = $_[4] if defined $_[4];
-    return $pl;
+    return $sub;
 }
 sub _make_cache_dir {
     my($dir, @mkdir) = $_[1];
