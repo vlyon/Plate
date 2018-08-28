@@ -88,7 +88,6 @@ sub _parse_fltr {
     }
     $expr;
 }
-sub _pre_line { '"\\\\\n%#line ".__LINE__."\n"' }
 sub _parse {
     my @expr;
     my $stmt;
@@ -97,7 +96,6 @@ sub _parse {
         if (@expr) {
             if (defined $stmt) {
                 $stmt .= '$Plate::_b.=';
-                $stmt .= _pre_line.'.' if $_[0] == $re_pre;
             } else {
                 $stmt = 'local$Plate::_b=';
             }
@@ -113,6 +111,15 @@ sub _parse {
             push @expr, _parse_text $1, $_[1], my $add_lines;
             (@expr ? $expr[-1] : defined $stmt ? $stmt : ($expr[0] = "''")) .= "\n" x $add_lines if $add_lines;
             $fix_line_num = @expr if $fix_line_num;
+        }
+
+        if ($_[1] == $re_run and @Plate::_l and $Plate::_l[0] <= $+[1]) {
+            my($pos, $line) = splice @Plate::_l, 0, 2;
+            ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[1];
+            my $rem = $+[1] - $pos;
+            $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
+            $expr2stmt->($_[1]);
+            $stmt .= "\n#line $line\n";
         }
 
         if (defined $2) {
@@ -178,13 +185,24 @@ sub _parse {
             }
 
             my $pl = defined $stmt
-            ? do {
-                unshift @expr, _pre_line if $_[1] == $re_pre and @expr;
-                $stmt.join('.', '$Plate::_b', @expr);
-            } : @expr ? join('.', @expr) : "''";
+            ? $stmt.join('.', '$Plate::_b', @expr)
+            : @expr ? join('.', @expr) : "''";
             $pl .= '=~s/\R\z//r' if $_[1] == $re_run and $$Plate::_s{chomp};
             $pl .= "\n" if defined $11;
             return $pl;
+        }
+
+        if ($_[1] == $re_pre) {
+            $expr2stmt->($_[1]);
+            $stmt .= 'push@Plate::_l,length$Plate::_b,__LINE__;';
+
+        } elsif (@Plate::_l and $Plate::_l[0] <= $+[0]) {
+            my($pos, $line) = splice @Plate::_l, 0, 2;
+            ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[0];
+            my $rem = $+[0] - $pos;
+            $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
+            $expr2stmt->($_[1]);
+            $stmt .= "\n#line $line\n";
         }
     }
 }
@@ -206,6 +224,7 @@ sub _eval {
 }
 sub _compile {
     my($file, $line) = length $_[1] ? ($_[1], "\n#line 1 $_[1]\n") : ('-', '');
+    local @Plate::_l;
     my $pl = _eval 'sub{'.$line._parse($_[0], $re_pre, $file, '').'}'
         or croak $@.'Plate precompilation failed';
     defined($pl = eval { $pl->() })

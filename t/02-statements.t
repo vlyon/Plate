@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -65,6 +65,13 @@ $fail = eval { $plate->serve(\<<'') };
 is $fail, undef, 'Compilation failed';
 like $@, qr'^Global symbol "\$precomp_var" requires explicit package name .*^Plate compilation failed at 'ms,
 'Precompilation doesnt affect runtime';
+
+eval { $plate->serve(\<<'') };
+%# line 5 "nowhere"
+%# line 23
+% die 'oops';
+
+is $@, "oops at nowhere line 23.\n", 'Replace line number and file name';
 
 $plate->set(init => q{
     Plate::_local_args(__PACKAGE__, shift) if @_;

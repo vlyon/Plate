@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 21;
+use Test::More tests => 22;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -50,7 +50,11 @@ is $plate->serve(\'<% my $i = 7; $i * 3 % 4 | %>'),
 '1',
 'Complex expression';
 
-is $plate->serve(\'<%join ",",@_|%>', 1..9),
+is $plate->serve(\"<% \@_ ? <%% 1 |%%> : <%% 2 |%%> |%>\\\n"),
+'2',
+'Precompiled expressions';
+
+is $plate->serve(\'<%join ",",@_|%><%% "" %%>', 1..9),
 '1,2,3,4,5,6,7,8,9',
 'Passed arguments';
 
