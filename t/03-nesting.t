@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 16;
+use Test::More tests => 20;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -49,6 +49,20 @@ PLATE
 is $plate->serve(\'<& test, 1..3 &>'),
 '<test></test>',
 'Render a plate without content using &Plate::content';
+
+$plate->define(test => '<% Plate::has_content() ? 1 : 0 %>');
+is $plate->serve(\'<&| test &></&>'),
+'1',
+'Check for content is true';
+is $plate->serve(\'<& test &>'),
+'0',
+'Check for content is false';
+is $plate->serve_with(\'<% Plate::has_content() ? 1 : 0 %>', \'<&| _ &></&>'),
+'1',
+'Check for content within content is true';
+is $plate->serve_with(\'<% Plate::has_content() ? 1 : 0 %>', \'<& _ &>'),
+'0',
+'Check for content within content is false';
 
 $plate->define(a => '<a><&| b, @_ &>x</&></a>');
 $plate->define(b => '<b><&| c, @_ &>+<% &Plate::content %>+</&></b>');

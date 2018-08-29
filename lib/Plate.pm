@@ -485,12 +485,19 @@ sub serve_with {
 
 =head2 content
 
-Used from within a template to return the content for the template.
+Used from within a template to return the content passed to that template.
+
+=head2 has_content
+
+Used from within a template to determine if that template was called with content.
 
 =cut
 
 sub content {
     @Plate::_c ? do { local @Plate::_c = @Plate::_c; &{pop @Plate::_c} } : undef;
+}
+sub has_content {
+    @Plate::_c and $Plate::_c[-1] != \&_empty;
 }
 
 =head2 filter
