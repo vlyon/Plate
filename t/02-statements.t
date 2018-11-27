@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 20;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -116,6 +116,14 @@ $fail = eval { $plate->serve(\<<'') };
 is $fail, undef, 'Compilation failed';
 like $@, qr"^Opening <%perl...> tag without closing </%perl> tag at ",
 'Compilation failure for missing closing tag';
+
+$fail = eval { $plate->serve(\<<'') };
+<%%perl>
+Same Line </%%perl>
+
+is $fail, undef, 'Precompilation failed';
+like $@, qr"^Opening <%%perl...> tag without closing </%%perl> tag at ",
+'Precompilation failure for missing closing tag';
 
 is $plate->serve(\<<''),
 <%%perl>

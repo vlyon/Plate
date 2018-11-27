@@ -89,12 +89,14 @@ $plate->undefine('defined');
 ok !$plate->does_exist('defined'), "Undefined plate doesn't exist";
 ok !$plate->can_serve('defined'), "Undefined plate can't be served";
 
-warnings_are {
-    is $plate->serve('test', qw(this & that)), $output, 'Expected ouput';
-} [
+my $test_warnings = [
     qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
     qr"^test-6-warn at t.data.test\.plate line 6\.$",
-], 'Expected warnings';
+];
+
+warnings_are {
+    is $plate->serve('test', qw(this & that)), $output, 'Expected ouput';
+} $test_warnings, 'Expected warnings';
 
 ok -f 't/data/inner.pl' && -f 't/data/outer.pl' && -f 't/data/test.pl', 'Cache files created';
 utime 946684800, 946684800, 't/data/test.pl'; # Set mtime to 2000-01-01
@@ -103,10 +105,7 @@ $plate->undefine;
 
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache';
-} [
-    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
-    qr"^test-6-warn at t.data.test\.plate line 6\.$",
-], 'Same warnings from disk cache';
+} $test_warnings, 'Same warnings from disk cache';
 
 is +(stat 't/data/test.pl')[9], 946684800, "Cache wasn't updated";
 utime 946684800, 946684800, 't/data/test.pl'; # Set mtime to 2000-01-01
@@ -118,10 +117,7 @@ is ref $plate->undefine('test'), 'CODE', 'Undefine returns the CODE ref';
 
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output after undefine';
-} [
-    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
-    qr"^test-6-warn at t.data.test\.plate line 6\.$",
-], 'Same warnings after undefine';
+} $test_warnings, 'Same warnings after undefine';
 
 isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
 
@@ -132,10 +128,7 @@ is $$plate{static}, 'auto', 'Static mode is automatic whithout path';
 
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache only';
-} [
-    qr"^inner-2-warn at t.data.inner\.plate line 2\.$",
-    qr"^test-6-warn at t.data.test\.plate line 6\.$",
-], 'Same warnings from disk cache only';
+} $test_warnings, 'Same warnings from disk cache only';
 
 $plate = new Plate path => 't/data', cache_code => undef;
 is $$plate{static}, 'auto', 'Static mode is automatic whithout cache_path or cache_code';
