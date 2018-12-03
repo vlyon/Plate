@@ -356,11 +356,12 @@ Options (with their defaults) are:
 
 =item C<< auto_filter => 'html' >>
 
-The name of the default filter to use for template variables when no filter is specified.
+The name of the default filter to use for template variables when no filter is specified, S<C<< <% ... %> >>>.
 The built-in default filter is a very basic HTML filter.
+Set this to C<undef> to disable the default filter.
 
-To prevent the default filter being used for a single variable,
-just set the filter to an empty string. Eg: C<< <% $unfiltered |%> >>
+To prevent the default filter being used for just a single variable,
+just set the filter to an empty string. Eg: S<C<< <% $unfiltered |%> >>>
 
 =item C<< cache_code => 1 >>
 
@@ -378,7 +379,8 @@ Compiled templates stored on the filesystem will have this suffix appended.
 
 =item C<< chomp => 1 >>
 
-If set to a true value, the final newline in every template will be removed.
+If set to a true value (the default),
+the final newline in every template will be removed.
 
 =item C<< encoding => 'UTF-8' >>
 
@@ -400,14 +402,17 @@ The package name that templates are compiled and run in.
 =item C<< path => '' >>
 
 The path to the templates on the filesystem.
+An empty string (the default) refers to the current directory.
 If set to C<undef> then the filesystem will not be searched,
 only cached templates will be served.
 
 =item C<< static => undef >>
 
-If set to a true value,
-the engine will not reload the template when the file changes.
+If set to a false value (the default),
+the engine will reload and recompile templates whenever files are modified.
 
+If set to a true value,
+file modification will not be checked nor will templates be reloaded.
 While this improves performance in production, it is not recommended in development.
 
 =item C<< suffix => '.plate' >>
@@ -530,12 +535,11 @@ sub filter {
     $plate->var(func => \&func);
     $plate->var(CONST => 123);
 
-Import a new local variable into the templating package for use by all templates.
-All templates will have access to these variables even under C<use strict>.
-
+Define a new local variable to be imported into the templating package when compiling and running templates.
+If the value is not a reference it will be a constant in the templating package.
 To remove a var pass C<undef> as the value.
 
-If the value is not a reference it will be a constant in the templating package.
+All templates will have access to these variables, subroutines and constants even under C<use strict>.
 
 =cut
 

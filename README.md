@@ -35,11 +35,12 @@ Options (with their defaults) are:
 
 - `auto_filter => 'html'`
 
-    The name of the default filter to use for template variables when no filter is specified.
+    The name of the default filter to use for template variables when no filter is specified, `<% ... %>`.
     The built-in default filter is a very basic HTML filter.
+    Set this to `undef` to disable the default filter.
 
-    To prevent the default filter being used for a single variable,
-    just set the filter to an empty string. Eg: `<% $unfiltered |%>`
+    To prevent the default filter being used for just a single variable,
+    just set the filter to an empty string. Eg: `<% $unfiltered |%>`
 
 - `cache_code => 1`
 
@@ -54,6 +55,11 @@ Options (with their defaults) are:
 - `cache_suffix => '.pl'`
 
     Compiled templates stored on the filesystem will have this suffix appended.
+
+- `chomp => 1`
+
+    If set to a true value (the default),
+    the final newline in every template will be removed.
 
 - `encoding => 'UTF-8'`
 
@@ -75,14 +81,17 @@ Options (with their defaults) are:
 - `path => ''`
 
     The path to the templates on the filesystem.
+    An empty string (the default) refers to the current directory.
     If set to `undef` then the filesystem will not be searched,
     only cached templates will be served.
 
 - `static => undef`
 
-    If set to a true value,
-    the engine will not reload the template when the file changes.
+    If set to a false value (the default),
+    the engine will reload and recompile templates whenever files are modified.
 
+    If set to a true value,
+    file modification will not be checked nor will templates be reloaded.
     While this improves performance in production, it is not recommended in development.
 
 - `suffix => '.plate'`
@@ -117,7 +126,11 @@ If `$content` is a SCALAR ref then it is the contents of a template to be compil
 
 ## content
 
-Used from within a template to return the content for the template.
+Used from within a template to return the content passed to that template.
+
+## has\_content
+
+Used from within a template to determine if that template was called with content.
 
 ## filter
 
@@ -139,12 +152,11 @@ $plate->var(func => \&func);
 $plate->var(CONST => 123);
 ```
 
-Import a new local variable into the templating package for use by all templates.
-All templates will have access to these variables even under `use strict`.
-
+Define a new local variable to be imported into the templating package when compiling and running templates.
+If the value is not a reference it will be a constant in the templating package.
 To remove a var pass `undef` as the value.
 
-If the value is not a reference it will be a constant in the templating package.
+All templates will have access to these variables, subroutines and constants even under `use strict`.
 
 ## define
 
