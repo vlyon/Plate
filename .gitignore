@@ -5,4 +5,5 @@
 /Build
 /cover_db
 /MYMETA.*
+/temp
 /.prove
