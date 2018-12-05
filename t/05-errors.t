@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 39;
+use Test::More tests => 41;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -83,7 +83,8 @@ Defined too late
 </%%def>
 PLATE
 }, 'Must declare %def blocks before use';
-like $@, qr"^\QCan't read .missing.plate: No such file or directory at err line 1.
+is 0+$!, 2, 'Expected errno';
+like $@, qr"^\QCan't read .missing.plate: $! at err line 1.
 Plate precompilation failed", 'Expected error';
 
 $plate->define(err => <<'PLATE');
@@ -94,7 +95,8 @@ Defined only in precompilation
 <& .missing &>
 PLATE
 ok !eval { $plate->serve('err') }, "Can't use precompiled %def blocks during runtime";
-is $@, "Can't read .missing.plate: No such file or directory at err line 5.\n", 'Expected error';
+is 0+$!, 2, 'Expected errno';
+is $@, "Can't read .missing.plate: $! at err line 5.\n", 'Expected error';
 
 ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
@@ -111,7 +113,7 @@ rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!" if -d 't/tmp_dir';
 $plate->set(path => 't', cache_path => 't/tmp_dir', umask => 027);
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('data/faulty') } // $@,
-qr"^Can't create cache directory \./t/tmp_dir/data: No such file or directory", 'Error creating cache directory';
+qr"^Can't create cache directory \./t/tmp_dir/data: ", 'Error creating cache directory';
 
 $plate->set(path => undef);
 like eval { $plate->serve('outer') } // $@,
@@ -122,7 +124,7 @@ if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer
     close $fh;
 }
 like eval { $plate->serve('outer') } // $@,
-qr"^Can't read t/outer\.plate: No such file or directory ", 'Missing template to reload from';
+qr"^Can't read t/outer\.plate: ", 'Missing template to reload from';
 
 if (open my $fh, '>', 't/tmp_dir/outer.pl' or diag "Can't create t/tmp_dir/outer.pl: $!") {
     print $fh '{';
@@ -159,11 +161,11 @@ SKIP: {
 unlink 't/tmp_dir/outer.pl';
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 like eval { $plate->serve('outer') } // $@,
-qr"^Can't write .*outer\.pl: No such file or directory", 'Error writing cache file';
+qr"^Can't write .*outer\.pl: ", 'Error writing cache file';
 
 $plate->set(path => '', cache_path => '.');
 like eval { $plate->serve('test') } // $@,
-qr"^Can't read test\.plate: No such file or directory ", 'Error on non-existent template';
+qr"^Can't read test\.plate: ", 'Error on non-existent template';
 
 $plate->set(path => undef, cache_path => undef);
 like eval { $plate->serve('test') } // $@,
