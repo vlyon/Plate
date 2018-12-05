@@ -99,11 +99,11 @@ sub _parse {
             } else {
                 $stmt = 'local$Plate::_b=';
             }
-            $stmt .= join('.', $_[1] ? splice @expr, 0, $fix_line_num : splice @expr).';';
+            $stmt .= join('.', $_[0] ? splice @expr, 0, $fix_line_num : splice @expr).';';
         } else {
             $stmt //= q"local$Plate::_b='';";
         }
-        undef $fix_line_num unless $_[1];
+        undef $fix_line_num unless $_[0];
     };
     while ($_[0] =~ /$_[1]/g) {
 
@@ -118,19 +118,19 @@ sub _parse {
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[1];
             my $rem = $+[1] - $pos;
             $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             $stmt .= "\n#line $line\n";
         }
 
         if (defined $2) {
             # % ...
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             $stmt .= _parse_cmnt $2;
             $stmt .= "\n";
 
         } elsif (defined $3) {
             # <%perl>
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             unless (defined $4) {
                 my $line = 1 + $stmt =~ y/\n//;
                 $line = "$_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
@@ -141,20 +141,20 @@ sub _parse {
 
         } elsif (defined $5) {
             # <%def ...>
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             local $_[3] = ($_[1] == $re_pre && '%').'%def';
             $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($5)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $6) {
             # <% ... %>
-            $expr2stmt->($_[1], 1) if $fix_line_num;
+            $expr2stmt->(1) if $fix_line_num;
             $fix_line_num = push @expr,
             _parse_fltr "do{$6}", $7 // $$Plate::_s{auto_filter};
 
         } elsif (defined $9) {
             # <& ... &> or <&| ... &>
             my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
-            $expr2stmt->($_[1], 1) if $fix_line_num;
+            $expr2stmt->(1) if $fix_line_num;
             if (defined $tmpl) {
                 if ($tmpl eq '_') {
                     $fix_line_num = push @expr, _parse_fltr defined $8
@@ -193,7 +193,7 @@ sub _parse {
         }
 
         if ($_[1] == $re_pre) {
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             $stmt .= 'push@Plate::_l,length$Plate::_b,__LINE__;';
 
         } elsif (@Plate::_l and $Plate::_l[0] <= $+[0]) {
@@ -201,7 +201,7 @@ sub _parse {
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[0];
             my $rem = $+[0] - $pos;
             $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
-            $expr2stmt->($_[1]);
+            $expr2stmt->();
             $stmt .= "\n#line $line\n";
         }
     }
