@@ -95,7 +95,7 @@ sub _parse {
     my $expr2stmt = sub {
         if (@expr) {
             if (defined $stmt) {
-                $stmt .= '$Plate::_b.=';
+                $stmt .= ';$Plate::_b.=';
             } else {
                 $stmt = 'local$Plate::_b=';
             }
@@ -185,7 +185,7 @@ sub _parse {
             }
 
             my $pl = defined $stmt
-            ? $stmt.join('.', '$Plate::_b', @expr)
+            ? $stmt.join('.', ';$Plate::_b', @expr)
             : @expr ? join('.', @expr) : "''";
             $pl .= '=~s/\R\z//r' if $_[1] == $re_run and $$Plate::_s{chomp};
             $pl .= "\n" if defined $11;
