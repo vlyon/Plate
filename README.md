@@ -21,6 +21,157 @@ my $output = $plate->serve('hello');
 print $output;
 ```
 
+# DESCRIPTION
+
+Plate is a very fast, efficient and full-featured templating engine.
+
+Inspired by [HTML::Mason](https://metacpan.org/pod/HTML::Mason) and [Tenjin](https://metacpan.org/pod/Tenjin), the goal of this templating engine is speed and functionality.
+It has no non-core dependencies, is a compact size and supports embedded Perl.
+
+Features include preprocessing templates,
+caching compiled templates,
+variable escaping/filtering,
+localised global variables.
+Templates can also include other templates, with optional content
+and even define or override templates locally.
+
+All templates have strict, warnings, utf8 and Perl 5.20 features enabled.
+
+## Example
+
+Here is an example template for a letter stored in the file: `letter.plate`
+
+```perl
+% my($title, $surname) = @_;
+Dear <% $title %> <% $surname %>,
+
+<& _ &>
+
+    Kind Regards,
+
+    E. X. Ample
+```
+
+Another template could _include_ this template, Eg: `job.plate`
+
+```perl
+<&| letter, 'Dr.', 'No' &>\
+In response to the recently advertised position, please
+consider my résumé in your search for a professional sidekick.
+</&>
+```
+
+Serving the `job.plate` template will result in the following output:
+
+```perl
+Dear Dr. No,
+
+In response to the recent advertised position, please
+consider my résumé in your search for a professional sidekick.
+
+        Kind Regards,
+
+        E. X. Ample
+```
+
+Here is the code to render this output:
+
+```perl
+use Plate;
+
+my $plate = new Plate;
+my $output = $plate->serve('job');
+```
+
+## Markup
+
+### Variables
+
+```
+<% $var %>
+<% $unescaped |%>
+<% $filtered |trim |html %>
+```
+
+Variables are interpolated into the output and optionally filtered (escaped).
+Filters are listed in the order to be applied preceded by a `|` character.
+If no filter is given as in the first example, then the default filter is applied.
+To explicitly avoid the default filter use the empty string as a filter.
+
+### Statements
+
+```perl
+% my $user = db_lookup(user => 'bob');
+% for my $var (@list) {
+```
+
+Lines that start with a `%` character are treated as Perl statements.
+
+### Perl blocks
+
+```
+<%perl>
+...
+</%perl>
+```
+
+Perl code can also be wrapped in a perl block.
+
+### Newlines
+
+Newline characters can be escaped with a backslash, Eg:
+
+```perl
+% for my $var ('a' .. 'c') {
+<% $var %>\
+% }
+```
+
+This will result in the output `abc`, all on one line.
+
+### Content
+
+```
+<& _ &>
+```
+
+A template can be served with content. This markup will insert the content provided, if any.
+
+### Include other templates
+
+```
+<& header, 'My Title' &>
+...
+<& footer &>
+```
+
+A template can include other templates with optional arguments.
+
+### Include other templates with provided content
+
+```
+<&| paragraph &>
+This content is passed to the "paragraph" template.
+</&>
+
+Plain text, <&| bold &>bold text</&>, plain text.
+```
+
+An included template can have its own content passed in.
+
+### Def blocks
+
+```perl
+<%def copyright>
+Copyright © <% $_[0] %>
+</%def>
+
+<& copyright, 2018 &>
+```
+
+Local templates can be defined in a template.
+They can even override existing templates.
+
 # SUBROUTINES/METHODS
 
 ## new
@@ -126,9 +277,17 @@ If `$content` is a SCALAR ref then it is the contents of a template to be compil
 
 ## content
 
+```perl
+% my $content = &Plate::content;
+```
+
 Used from within a template to return the content passed to that template.
 
 ## has\_content
+
+```
+% if (Plate::has_content) { ...
+```
 
 Used from within a template to determine if that template was called with content.
 
@@ -166,6 +325,9 @@ $plate->define($template_name => $content);
 
 This will cache a template in memory.
 The `$content` is the contents of a template (as a string) to be compiled or a CODE ref.
+
+This is useful if you need to use templates that are not stored on the file system,
+for example from a database or a custom subroutine.
 
 ## undefine
 

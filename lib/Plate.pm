@@ -13,6 +13,8 @@ BEGIN {
     XSLoader::load __PACKAGE__, $Plate::VERSION;
 }
 
+=encoding UTF-8
+
 =head1 NAME
 
 Plate - Fast templating engine with support for embedded Perl
@@ -342,6 +344,133 @@ sub _path {
     sub _basic_html_filter { $_[0] =~ s/(["&'<>])/$esc_html{$1}/egr }
 }
 
+=head1 DESCRIPTION
+
+Plate is a very fast, efficient and full-featured templating engine.
+
+Inspired by L<HTML::Mason> and L<Tenjin>, the goal of this templating engine is speed and functionality.
+It has no non-core dependencies, is a compact size and supports embedded Perl.
+
+Features include preprocessing templates,
+caching compiled templates,
+variable escaping/filtering,
+localised global variables.
+Templates can also include other templates, with optional content
+and even define or override templates locally.
+
+All templates have strict, warnings, utf8 and Perl 5.20 features enabled.
+
+=head2 Example
+
+Here is an example template for a letter stored in the file: C<letter.plate>
+
+    % my($title, $surname) = @_;
+    Dear <% $title %> <% $surname %>,
+    
+    <& _ &>
+    
+        Kind Regards,
+    
+        E. X. Ample
+
+Another template could I<include> this template, Eg: C<job.plate>
+
+    <&| letter, 'Dr.', 'No' &>\
+    In response to the recently advertised position, please
+    consider my résumé in your search for a professional sidekick.
+    </&>
+
+Serving the C<job.plate> template will result in the following output:
+
+    Dear Dr. No,
+    
+    In response to the recent advertised position, please
+    consider my résumé in your search for a professional sidekick.
+    
+            Kind Regards,
+    
+            E. X. Ample
+
+Here is the code to render this output:
+
+    use Plate;
+    
+    my $plate = new Plate;
+    my $output = $plate->serve('job');
+
+=head2 Markup
+
+=head3 Variables
+
+    <% $var %>
+    <% $unescaped |%>
+    <% $filtered |trim |html %>
+
+Variables are interpolated into the output and optionally filtered (escaped).
+Filters are listed in the order to be applied preceded by a C<|> character.
+If no filter is given as in the first example, then the default filter is applied.
+To explicitly avoid the default filter use the empty string as a filter.
+
+=head3 Statements
+
+    % my $user = db_lookup(user => 'bob');
+    % for my $var (@list) {
+
+Lines that start with a C<%> character are treated as Perl statements.
+
+=head3 Perl blocks
+
+    <%perl>
+    ...
+    </%perl>
+
+Perl code can also be wrapped in a perl block.
+
+=head3 Newlines
+
+Newline characters can be escaped with a backslash, Eg:
+
+    % for my $var ('a' .. 'c') {
+    <% $var %>\
+    % }
+
+This will result in the output C<abc>, all on one line.
+
+=head3 Content
+
+    <& _ &>
+
+A template can be served with content. This markup will insert the content provided, if any.
+
+=head3 Include other templates
+
+    <& header, 'My Title' &>
+    ...
+    <& footer &>
+
+A template can include other templates with optional arguments.
+
+=head3 Include other templates with provided content
+
+    <&| paragraph &>
+    This content is passed to the "paragraph" template.
+    </&>
+    
+    Plain text, <&| bold &>bold text</&>, plain text.
+
+An included template can have its own content passed in.
+
+=head3 Def blocks
+
+    <%def copyright>
+    Copyright © <% $_[0] %>
+    </%def>
+    
+    <& copyright, 2018 &>
+
+Local templates can be defined in a template.
+They can even override existing templates.
+
 =head1 SUBROUTINES/METHODS
 
 =head2 new
@@ -490,9 +619,13 @@ sub serve_with {
 
 =head2 content
 
+    % my $content = &Plate::content;
+
 Used from within a template to return the content passed to that template.
 
 =head2 has_content
+
+    % if (Plate::has_content) { ...
 
 Used from within a template to determine if that template was called with content.
 
@@ -565,6 +698,9 @@ sub var {
 
 This will cache a template in memory.
 The C<$content> is the contents of a template (as a string) to be compiled or a CODE ref.
+
+This is useful if you need to use templates that are not stored on the file system,
+for example from a database or a custom subroutine.
 
 =head2 undefine
 
