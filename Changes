@@ -1,5 +1,7 @@
 Revision history for Plate
 
+{{$NEXT}}
+
 0.2       2018-12-06 13:23:01+00:00 Europe/London
     - Add markup documentation
     - Fix broken tests on non-English locales
