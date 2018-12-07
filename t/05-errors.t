@@ -183,10 +183,12 @@ rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 $plate = new Plate path => 't/data';
 $plate->define(line_test => "<& utf8 &>\nLine 2\n<& faulty &>\nLine 4\n");
 like eval { $plate->serve('line_test') } // $@,
-qr'^Bareword "This" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
-Bareword "template" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
-Bareword "is" not allowed while "strict subs" in use at t.data.faulty\.plate line 4\.
+$] < 5.025_001
+? qr'^Bareword "This" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
+Bareword "is" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
 Bareword "broken" not allowed while "strict subs" in use at t.data.faulty\.plate line 4\.
+Plate compilation failed at line_test line 3\.
+' : qr'^Bareword "This" not allowed while "strict subs" in use at t.data.faulty\.plate line 2\.
 Plate compilation failed at line_test line 3\.
 ', 'Correct line number';
 

@@ -78,8 +78,8 @@ ok !$plate->can_serve('missing'), "Plate 'missing' can't be served";
 
 ok $plate->does_exist('faulty'), "Plate 'faulty' does exist";
 ok !$plate->can_serve('faulty'), "Plate 'faulty' can't be served";
-like $@, qr'Bareword "broken" not allowed .*
-Plate compilation failed ', 'Expected compilation error';
+like $@, qr/\ABareword "This" not allowed .*
+Plate compilation failed /s, 'Expected compilation error';
 
 $plate->define(defined => 'defined');
 ok $plate->does_exist('defined'), "Defined plate does exist";
