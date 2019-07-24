@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 20;
+use Test::More tests => 21;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -24,6 +24,7 @@ my $sub = $plate->define(test => 'Test');
 is ref $sub, 'CODE', 'Plate::define returns a subroutine';
 is $plate->serve('test'), 'Test', 'Render a defined plate by name';
 is $plate->serve(\'<& test &>'), 'Test', 'Call a defined plate by name';
+is $plate->serve(\"<& \n test, \n 1, \n 2, \n 3, \n &>"), 'Test', 'Call a defined plate containing newlines';
 isnt $plate->define(test => sub { 'Redefined' }), $sub, 'Redefine a plate';
 is $plate->serve('test'), 'Redefined', 'Render the redefined plate';
 

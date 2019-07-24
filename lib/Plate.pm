@@ -155,7 +155,7 @@ sub _parse {
 
         } elsif (defined $9) {
             # <& ... &> or <&| ... &>
-            my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/ };
+            my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/s };
             $expr2stmt->(1) if $fix_line_num;
             if (defined $tmpl) {
                 if ($tmpl eq '_') {

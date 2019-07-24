@@ -46,7 +46,12 @@ is $plate->serve(\'<% undef |html %>'),
 '',
 'Undefined expression is coerced to ""';
 
-is $plate->serve(\'<% my $i = 7; $i * 3 % 4 | %>'),
+is $plate->serve(\<<''),
+<%
+  my $i = 7;
+  $i * 3 % 4;
+| %>
+
 '1',
 'Complex expression';
 
