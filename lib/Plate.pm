@@ -59,7 +59,7 @@ my $re_run = qr'(.*?)(?:
 
 sub _parse_text {
     my $text = $_[0];
-    $_[2] = $text =~ s/\\\R//g if $_[1] == $re_run;
+    $_[2] = $text =~ s/\\\R//g unless $_[1];
     $text =~ s/(\\|')/\\$1/g;
     length $text ? "'$text'" : ();
 }
@@ -93,6 +93,7 @@ sub _parse_fltr {
 sub _parse {
     my @expr;
     my $stmt;
+    my $pre = $_[1] == $re_pre;
     my $fix_line_num;
     my $expr2stmt = sub {
         if (@expr) {
@@ -110,12 +111,12 @@ sub _parse {
     while ($_[0] =~ /$_[1]/g) {
 
         if (length $1) {
-            push @expr, _parse_text $1, $_[1], my $add_lines;
+            push @expr, _parse_text $1, $pre, my $add_lines;
             (@expr ? $expr[-1] : defined $stmt ? $stmt : ($expr[0] = "''")) .= "\n" x $add_lines if $add_lines;
             $fix_line_num = @expr if $fix_line_num;
         }
 
-        if ($_[1] == $re_run and @Plate::_l and $Plate::_l[0] <= $+[1]) {
+        if (!$pre and @Plate::_l and $Plate::_l[0] <= $+[1]) {
             my($pos, $line) = splice @Plate::_l, 0, 2;
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[1];
             my $rem = $+[1] - $pos;
@@ -135,8 +136,8 @@ sub _parse {
             $expr2stmt->();
             unless (defined $4) {
                 my $line = 1 + $stmt =~ y/\n//;
-                $line = "$_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
-                my $tag = ($_[1] == $re_pre && '%').'%'.$3;
+                $line = "$_[2] line $line.\nPlate ".($pre && 'pre').'compilation failed';
+                my $tag = ($pre && '%').'%'.$3;
                 croak "Opening <$tag...> tag without closing </$tag> tag at $line";
             }
             $stmt .= "\n$4\n";
@@ -144,7 +145,7 @@ sub _parse {
         } elsif (defined $5) {
             # <%def ...>
             $expr2stmt->();
-            local $_[3] = ($_[1] == $re_pre && '%').'%def';
+            local $_[3] = ($pre && '%').'%def';
             $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($5)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $6) {
@@ -162,7 +163,7 @@ sub _parse {
                     $fix_line_num = push @expr, _parse_fltr defined $8
                     ? do {
                         $args = defined $args ? "($args)" : '';
-                        local $_[3] = $_[1] == $re_pre ? '&&' : '&';
+                        local $_[3] = $pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)"
                     }
                     : defined $args ? "Plate::content($args)" : '&Plate::content', $10;
@@ -173,14 +174,14 @@ sub _parse {
                 $tmpl = "Plate::_r($9,";
             }
             $fix_line_num = push @expr,
-            _parse_fltr $tmpl.(defined $8 ? (local $_[3] = $_[1] == $re_pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $10;
+            _parse_fltr $tmpl.(defined $8 ? (local $_[3] = $pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').')', $10;
 
         } else {
             # </%...> or </&> or \z
             my $tag = $11 // $12 // '';
             if ($tag ne $_[3]) {
                 my $line = 1 + join('', $stmt // '', @expr) =~ y/\n//;
-                $line = "$_[2] line $line.\nPlate ".($_[1] == $re_pre && 'pre').'compilation failed';
+                $line = "$_[2] line $line.\nPlate ".($pre && 'pre').'compilation failed';
                 croak $tag
                 ? "Closing </$tag> tag without opening <$tag...> tag at $line"
                 : "Opening <$_[3]...> tag without closing </$_[3]> tag at $line";
@@ -189,12 +190,12 @@ sub _parse {
             my $pl = defined $stmt
             ? $stmt.join('.', ';$Plate::_b', @expr)
             : @expr ? join('.', @expr) : "''";
-            $pl .= '=~s/\R\z//r' if $_[1] == $re_run and $$Plate::_s{chomp};
+            $pl .= '=~s/\R\z//r' if !$pre and $$Plate::_s{chomp};
             $pl .= "\n" if defined $11;
             return $pl;
         }
 
-        if ($_[1] == $re_pre) {
+        if ($pre) {
             $expr2stmt->();
             $stmt .= 'push@Plate::_l,length$Plate::_b,__LINE__;';
 
