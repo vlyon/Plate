@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 22;
+use Test::More tests => 24;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -123,5 +123,23 @@ $plate->set(auto_filter => undef);
 is $plate->serve(\'<% "Hello World" %>'),
 'Hello World',
 'Remove auto_filter';
+
+is $plate->serve(\<<''), "Hi5\n\n\nExtra\n\nLines\n\n\n7up", 'Multi-line expressions';
+<%
+'Hi'
+|html
+%>\
+<% __LINE__ |%>
+<% "\n\nExtra\n\nLines\n\n" |%>
+<% __LINE__ |%>up\
+
+is $plate->serve(\<<''), "Hi5\n\n\nExtra\n\nLines\n\n\n7up", 'Precompiled multi-line expressions';
+<%%
+'Hi'
+|html
+%%>\
+<% __LINE__ |%>
+<%% "\n\nExtra\n\nLines\n\n" |%%>
+<% __LINE__ |%>up
 
 ok !$warned, 'No warnings';

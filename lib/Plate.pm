@@ -151,9 +151,11 @@ sub _parse {
 
         } elsif (defined $6) {
             # <% ... %>
+            my $nl = "\n" x (substr($_[0], $+[1], $+[0] - $+[1]) =~ tr/\n// - $6 =~ tr/\n//);
             $expr2stmt->(1) if $fix_line_num;
             $fix_line_num = push @expr,
-            _parse_fltr "do{$6}", $7 // $$Plate::_s{auto_filter};
+            _parse_fltr "do{$6}$nl", $7 // $$Plate::_s{auto_filter};
+            $expr2stmt->() if $pre;
 
         } elsif (defined $9) {
             # <& ... &> or <&| ... &>
