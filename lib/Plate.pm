@@ -98,6 +98,7 @@ sub _parse {
     my $expr2stmt = sub {
         if (@expr) {
             if (defined $stmt) {
+                $stmt .= ';push@Plate::_l,length$Plate::_b,__LINE__' if $pre;
                 $stmt .= ';$Plate::_b.=';
             } else {
                 $stmt = 'local$Plate::_b=';
@@ -188,18 +189,17 @@ sub _parse {
             }
 
             my $pl = defined $stmt
-            ? $stmt.join('.', ';$Plate::_b', @expr)
+            ? do {
+                $stmt .= ';push@Plate::_l,length$Plate::_b,__LINE__' if $pre and @expr;
+                $stmt.join('.', ';$Plate::_b', @expr);
+            }
             : @expr ? join('.', @expr) : "''";
             $pl .= '=~s/\R\z//r' if !$pre and $$Plate::_s{chomp};
             $pl .= "\n" if defined $11;
             return $pl;
         }
 
-        if ($pre) {
-            $expr2stmt->();
-            $stmt .= 'push@Plate::_l,length$Plate::_b,__LINE__;';
-
-        } elsif (@Plate::_l and $Plate::_l[0] <= $+[0]) {
+        if (!$pre and @Plate::_l and $Plate::_l[0] <= $+[0]) {
             my($pos, $line) = splice @Plate::_l, 0, 2;
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[0];
             my $rem = $+[0] - $pos;

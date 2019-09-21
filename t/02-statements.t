@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 20;
+use Test::More tests => 22;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -150,5 +150,20 @@ $fail = eval { $plate->serve(\<<'') };
 is $fail, undef, 'Precompilation failed';
 like $@, qr"^Closing </%%perl> tag without opening <%%perl...> tag at ",
 'Precompilation failure for missing opening tag';
+
+is $plate->serve(\<<''), 4, 'Precompiled multi-line %% statements';
+%% my $zero
+%% = 0
+%% ;
+<% __LINE__ |%>
+
+is $plate->serve(\<<''), '2247', 'Precompiled %% for loops';
+%% for (1,2) {
+<% __LINE__ |%>\
+%%   if ($_ == 2) {
+<% __LINE__ |%>\
+%%   }
+%% }
+<% __LINE__ |%>
 
 ok !$warned, 'No warnings';
