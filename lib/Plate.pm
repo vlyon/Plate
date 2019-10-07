@@ -170,7 +170,7 @@ sub _parse {
                         local $_[3] = $pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)$nl"
                     }
-                    : defined $args ? "Plate::content($args)$nl" : "&Plate::content$nl", $10;
+                    : defined $args ? "do{Plate::content($args)}$nl" : "do{&Plate::content}$nl", $10;
                     $expr2stmt->() if $pre and $nl;
                     next;
                 }
@@ -179,7 +179,7 @@ sub _parse {
                 $tmpl = "Plate::_r($9,";
             }
             $fix_line_num = push @expr,
-            _parse_fltr $tmpl.(defined $8 ? (local $_[3] = $pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').")$nl", $10;
+            _parse_fltr "do{$tmpl".(defined $8 ? (local $_[3] = $pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').")}$nl", $10;
             $expr2stmt->() if $pre and $nl;
 
         } else {

@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 41;
+use Test::More tests => 44;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -87,6 +87,20 @@ PLATE
 is 0+$!, 2, 'Expected errno';
 like $@, qr"^\QCan't read .missing.plate: $! at err line 2.
 Plate precompilation failed", 'Expected error';
+
+$plate->define(err => <<'PLATE');
+L1
+<& .missing &>
+PLATE
+ok !eval { $plate->serve('err') }, "Can't include missing template";
+is $@, "Can't read .missing.plate: $! at err line 2.\n", 'Expected error';
+
+eval { $plate->define(err => <<'PLATE') };
+L1
+<& _, oops &>
+PLATE
+like $@, qr/^Bareword "oops" not allowed while "strict subs" in use at err line 2.\n/,
+'Correct line number';
 
 $plate->define(err => <<'PLATE');
 %% 0;
