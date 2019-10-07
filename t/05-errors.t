@@ -77,6 +77,7 @@ like $@, qr"^\QOpening <%%def...> tag without closing </%%def> tag at err line 1
 Plate precompilation failed", 'Expected error';
 
 ok !eval { $plate->define(err => <<'PLATE');
+Check missing
 <&& .missing &&>
 <%%def .missing>
 Defined too late
@@ -84,7 +85,7 @@ Defined too late
 PLATE
 }, 'Must declare %def blocks before use';
 is 0+$!, 2, 'Expected errno';
-like $@, qr"^\QCan't read .missing.plate: $! at err line 1.
+like $@, qr"^\QCan't read .missing.plate: $! at err line 2.
 Plate precompilation failed", 'Expected error';
 
 $plate->define(err => <<'PLATE');
