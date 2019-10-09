@@ -93,14 +93,19 @@ L1
 <& .missing &>
 PLATE
 ok !eval { $plate->serve('err') }, "Can't include missing template";
-is $@, "Can't read .missing.plate: $! at err line 2.\n", 'Expected error';
 
-eval { $plate->define(err => <<'PLATE') };
+SKIP: {
+    skip 'Broken before v5.21.6 - RT#122695', 2 if $] < 5.021_006;
+
+    is $@, "Can't read .missing.plate: $! at err line 2.\n", 'Expected error';
+
+    eval { $plate->define(err => <<'PLATE') };
 L1
 <& _, oops &>
 PLATE
-like $@, qr/^Bareword "oops" not allowed while "strict subs" in use at err line 2.\n/,
-'Correct line number';
+    like $@, qr/^Bareword "oops" not allowed while "strict subs" in use at err line 2.\n/,
+    'Correct line number';
+}
 
 $plate->define(err => <<'PLATE');
 %% 0;
