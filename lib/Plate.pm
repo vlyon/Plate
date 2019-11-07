@@ -521,6 +521,16 @@ the final newline in every template will be removed.
 
 Set this to the encoding of your template files.
 
+=item C<< filters => { html => \&_basic_html_filter } >>
+
+A hash of filters to set for use in templates.
+The key is the name of the filter, and the value is the CODE ref, subroutine name or C<undef>.
+The subroutine will be given one argument (the content to filter) as a string,
+and must return the filtered string.
+To remove a filter pass C<undef> as it's value.
+
+To remove all filters pass C<undef> instead of a HASH ref.
+
 =item C<< keep_undef => undef >>
 
 If set to a false value (the default),
@@ -557,6 +567,17 @@ The suffix appended to template names when searching on the filesystem.
 =item C<< umask => 077 >>
 
 The C<umask> used when creating cache files and directories.
+
+=item C<< vars => {} >>
+
+A hash of vars to set for use in templates.
+This will define new local variables to be imported into the templating package when compiling and running templates.
+If the value is not a reference it will be a constant in the templating package.
+To remove a var pass C<undef> as it's value.
+
+To remove all vars pass C<undef> instead of a HASH ref.
+
+All templates will have access to these variables, subroutines and constants even under C<use strict>.
 
 =back
 
@@ -644,60 +665,6 @@ sub has_content {
     @Plate::_c and $Plate::_c[-1] != \&_empty;
 }
 
-=head2 filter
-
-    $plate->filter($filter_name => sub { ... });
-
-Add a new filter for use in templates.
-The subroutine will be given one argument (the content to filter) as a string,
-and must return the filtered string.
-
-=cut
-
-sub filter {
-    my($self, $name, $code) = @_;
-
-    $name =~ /^\w+$/
-        or croak "Invalid filter name '$name'";
-    return delete $$self{filters}{$name} unless defined $code;
-    ref $code eq 'CODE'
-        or $code = ($code =~ /(.*)::(.*)/ ? $1->can($2) : do { my($i,$p) = 0; $i++ while __PACKAGE__ eq ($p = caller $i); $p->can($code) })
-        or croak "Invalid subroutine '$_[2]' for filter '$name'";
-    $$self{filters}{$name} = $code;
-}
-
-=head2 var
-
-    $plate->var('$var' => \$var);
-    $plate->var('%hash' => \%hash);
-    $plate->var('@array' => \@array);
-    $plate->var(func => \&func);
-    $plate->var(CONST => 123);
-
-Define a new local variable to be imported into the templating package when compiling and running templates.
-If the value is not a reference it will be a constant in the templating package.
-To remove a var pass C<undef> as the value.
-
-All templates will have access to these variables, subroutines and constants even under C<use strict>.
-
-=cut
-
-my %sigil = (
-    ARRAY => '@',
-    CODE => '&',
-    GLOB => '*',
-    HASH => '%',
-);
-sub var {
-    my($self, $name, $ref) = @_;
-
-    defined $ref or return delete $$self{vars}{$name};
-
-    my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
-    $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
-    $$self{vars}{$name} = $ref;
-}
-
 =head2 define
 
     $plate->define($template_name => $content);
@@ -772,6 +739,13 @@ Options are the same as those for L</new>.
 
 =cut
 
+my %sigil = (
+    ARRAY => '@',
+    CODE => '&',
+    GLOB => '*',
+    HASH => '%',
+);
+
 sub set {
     my($self, %opt) = @_;
 
@@ -786,11 +760,43 @@ sub set {
             $v = _path $v, 1 if defined $v;
         } elsif ($k =~ /^(?:(?:cache_)?suffix|init|io_layers|once)$/) {
             $v //= '';
-        } elsif ($k eq 'filters' or $k eq 'vars') {
-            my $method = substr $k, 0, -1;
+        } elsif ($k eq 'filters') {
             if (defined $v) {
                 ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
-                $self->$method($_ => $$v{$_}) for keys %$v;
+                while (my($name, $code) = each %$v) {
+                    $name =~ /^\w+$/
+                        or croak "Invalid filter name '$name'";
+                    if (defined $code) {
+                        ref $code eq 'CODE'
+                            or $code = ($code =~ /(.*)::(.*)/
+                            ? $1->can($2)
+                            : do {
+                                my($i,$p) = 0;
+                                $i++ while __PACKAGE__ eq ($p = caller $i);
+                                $p->can($code)
+                            })
+                            or croak "Invalid subroutine '$$v{$name}' for filter '$name'";
+                        $$self{filters}{$name} = $code;
+                    } else {
+                        delete $$self{filters}{$name};
+                    }
+                }
+            } else {
+                undef %{$$self{$k}};
+            }
+            next;
+        } elsif ($k eq 'vars') {
+            if (defined $v) {
+                ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
+                while (my($name, $ref) = each %$v) {
+                    if (defined $ref) {
+                        my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
+                        $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
+                        $$self{vars}{$name} = $ref;
+                    } else {
+                        delete $$self{vars}{$name};
+                    }
+                }
             } else {
                 undef %{$$self{$k}};
             }

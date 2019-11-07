@@ -54,10 +54,10 @@ qr"^Invalid package name ", "Can't set undefined package name";
 
 my $plate = new Plate cache_code => undef;
 
-like eval { $plate->filter(-test => 'no::such_sub') } // $@,
+like eval { $plate->set(filters => { -test => 'no::such_sub' }) } // $@,
 qr"^Invalid filter name '-test' ", "Can't set invalid filter name";
 
-like eval { $plate->filter(test => 'no::such_sub') } // $@,
+like eval { $plate->set(filters => { test => 'no::such_sub' }) } // $@,
 qr"^Invalid subroutine 'no::such_sub' for filter 'test' ", "Can't set invalid filter sub";
 
 ok !eval { $plate->define(err => <<'PLATE');
@@ -121,7 +121,7 @@ is $@, "Can't read .missing.plate: $! at err line 5.\n", 'Expected error';
 ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
 
-$plate->filter(html => undef);
+$plate->set(filters => { html => undef });
 like eval { $plate->serve(\'<% 1 %>') } // $@,
 qr"^No 'html' filter defined ", 'Invalid auto_filter';
 

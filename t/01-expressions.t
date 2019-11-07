@@ -83,12 +83,12 @@ is $plate->serve(\'<% $var %> <% $var[0] %> <% $Some::Where::var{a} %> <% Plate:
 'String Array Hash 1',
 'Set a new package name & use the same vars';
 
-ok $plate->var(trim => sub { $_[0] =~ s/^\s+|\s+$//gr }), 'Set a local function';
+$plate->set(vars => { trim => sub { $_[0] =~ s/^\s+|\s+$//gr } });
 is $plate->serve(\'<% trim "  Hello World\n" %>'),
 'Hello World',
-'Call a local function';
+'Set & call a local function';
 
-$plate->var('$var' => undef);
+$plate->set(vars => { '$var' => undef });
 is $plate->serve(\'<% $var %>'),
 '',
 'Remove a var';
@@ -98,18 +98,18 @@ is $plate->serve(\'<% @var %>'),
 '0',
 'Remove all vars';
 
-$plate->filter(upper => sub { uc $_[0] });
+$plate->set(filters => { upper => sub { uc $_[0] } });
 is $plate->serve(\'<% "Hello World" |upper %>'),
 'HELLO WORLD',
 'Add a filter by subroutine reference';
 
 sub lower { lc $_[0] };
-$plate->filter(lower => 'lower');
+$plate->set(filters => { lower => 'lower' });
 is $plate->serve(\'<% "Hello World" |lower %>'),
 'hello world',
 'Add a filter by subroutine name';
 
-$plate->filter(lower => sub { lcfirst $_[0] });
+$plate->set(filters => { lower => sub { lcfirst $_[0] } });
 is $plate->serve(\'<% "Hello World" |lower %>'),
 'hello World',
 'Replace a filter';
@@ -141,5 +141,9 @@ is $plate->serve(\<<''), "Hi5\n\n\nExtra\n\nLines\n\n\n7up", 'Precompiled multi-
 <% __LINE__ |%>
 <%% "\n\nExtra\n\nLines\n\n" |%%>
 <% __LINE__ |%>up
+
+$plate->set(filters => undef);
+like eval { $plate->serve(\'<% 1 |html %>') } // $@,
+qr"^No 'html' filter defined ", 'Remove all filters';
 
 ok !$warned, 'No warnings';
