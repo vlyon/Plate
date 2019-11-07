@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 46;
+use Test::More tests => 47;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -121,10 +121,12 @@ warnings_are {
 
 isnt +(stat 't/data/test.pl')[9], 946684800, 'Cache was updated';
 
+$plate->set(cache_code => 1);
 is $plate->serve_with('outer', 'outer'), "[\n[\n\n]\n]", 'Serve with a layout';
 
 $plate = new Plate path => undef, cache_path => 't/data';
 is $$plate{static}, 'auto', 'Static mode is automatic whithout path';
+ok $plate->does_exist('test'), "Disk cached plate 'data/test' does exist";
 
 warnings_are {
     is $plate->serve('test', qw(this & that)), $output, 'Same output from disk cache only';
