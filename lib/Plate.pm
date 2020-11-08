@@ -42,6 +42,7 @@ my $re_pre = qr'(.*?)(?:
     ^%%\h*(\V*?)\h*(?:\R|\z)|
     ^<%%(perl)>(?:\R|\z)(?:(.*?)^</%%\g-2>(?:\R|\z))?|
     ^<%%def\h+([\w/\.-]+)>(?:\R|\z)|
+    <%%(\s*(?:\#.+?)?)%%>|
     <%%\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?%%>|
     <&&(\|)?\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?&&>|
     </(%%def|%%perl)>(?:\R|\z)|
@@ -51,6 +52,7 @@ my $re_run = qr'(.*?)(?:
     ^%\h*(\V*?)\h*(?:\R|\z)|
     ^<%(perl)>(?:\R|\z)(?:(.*?)^</%\g-2>(?:\R|\z))?|
     ^<%def\h+([\w/\.-]+)>(?:\R|\z)|
+    <%(\s*(?:\#.+?)?)%>|
     <%\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?%>|
     <&(\|)?\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?&>|
     </(%def|%perl)>(?:\R|\z)|
@@ -150,41 +152,48 @@ sub _parse {
             $stmt .= 'local$$Plate::_s{mem}{'._parse_defn($5)."}=\nsub{".&_parse.'};';
 
         } elsif (defined $6) {
+            # <%# ... %>
+            my $add_lines = $6 =~ tr/\n//;
+            (@expr ? $expr[-1] : defined $stmt ? $stmt : ($expr[0] = "''")) .= "\n" x $add_lines if $add_lines;
+            $fix_line_num = @expr if $fix_line_num;
+
+        } elsif (defined $7) {
             # <% ... %>
-            my $nl = "\n" x (substr($_[0], $+[1], $+[0] - $+[1]) =~ tr/\n// - $6 =~ tr/\n//);
+            my $nl1 = "\n" x substr($_[0], $+[1], $-[7] - $+[1]) =~ tr/\n//;
+            my $nl2 = "\n" x substr($_[0], $+[7], $+[0] - $+[7]) =~ tr/\n//;
             $expr2stmt->(1) if $fix_line_num;
             $fix_line_num = push @expr,
-            _parse_fltr "do{$6}$nl", $7 // $$Plate::_s{auto_filter};
+            _parse_fltr "do{$nl1$7}$nl2", $8 // $$Plate::_s{auto_filter};
             $expr2stmt->() if $pre;
 
-        } elsif (defined $9) {
+        } elsif (defined $10) {
             # <& ... &> or <&| ... &>
-            my $nl = "\n" x (substr($_[0], $+[1], $+[0] - $+[1]) =~ tr/\n// - $9 =~ tr/\n//);
-            my($tmpl, $args) = do { $9 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/s };
+            my $nl = "\n" x (substr($_[0], $+[1], $+[0] - $+[1]) =~ tr/\n// - $10 =~ tr/\n//);
+            my($tmpl, $args) = do { $10 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/s };
             $expr2stmt->(!$pre) if $pre or $fix_line_num;
             if (defined $tmpl) {
                 if ($tmpl eq '_') {
-                    $fix_line_num = push @expr, _parse_fltr defined $8
+                    $fix_line_num = push @expr, _parse_fltr defined $9
                     ? do {
                         $args = defined $args ? "($args)" : '';
                         local $_[3] = $pre ? '&&' : '&';
                         '(@Plate::_c?do{local@Plate::_c=@Plate::_c;&{splice@Plate::_c,-1,1,sub{'.&_parse."}}$args}:undef)$nl"
                     }
-                    : defined $args ? "do{Plate::content($args)}$nl" : "do{&Plate::content}$nl", $10;
+                    : defined $args ? "do{Plate::content($args)}$nl" : "do{&Plate::content}$nl", $11;
                     $expr2stmt->() if $pre and $nl;
                     next;
                 }
                 $tmpl = defined $args ? "Plate::_r('$tmpl',($args)," : "Plate::_r('$tmpl',";
             } else {
-                $tmpl = "Plate::_r($9,";
+                $tmpl = "Plate::_r($10,";
             }
             $fix_line_num = push @expr,
-            _parse_fltr "do{$tmpl".(defined $8 ? (local $_[3] = $pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').")}$nl", $10;
+            _parse_fltr "do{$tmpl".(defined $9 ? (local $_[3] = $pre ? '&&' : '&', 'sub{'.&_parse.'}') : 'undef').")}$nl", $11;
             $expr2stmt->() if $pre and $nl;
 
         } else {
             # </%...> or </&> or \z
-            my $tag = $11 // $12 // '';
+            my $tag = $12 // $13 // '';
             if ($tag ne $_[3]) {
                 my $line = 1 + join('', $stmt // '', @expr) =~ y/\n//;
                 $line = "$_[2] line $line.\nPlate ".($pre && 'pre').'compilation failed';
@@ -200,7 +209,7 @@ sub _parse {
             }
             : @expr ? join('.', @expr) : "''";
             $pl .= '=~s/\R\z//r' if !$pre and $$Plate::_s{chomp};
-            $pl .= "\n" if defined $11;
+            $pl .= "\n" if defined $12;
             return $pl;
         }
 
@@ -423,6 +432,15 @@ To explicitly avoid the default filter use the empty string as a filter.
     % for my $var (@list) {
 
 Lines that start with a C<%> character are treated as Perl statements.
+
+=head3 Comments
+
+    %# Comment line
+    <% # inline comment %>
+    <%#
+        Multi-line
+        comment
+    %>
 
 =head3 Perl blocks
 

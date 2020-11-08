@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 8;
+use Test::More tests => 9;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -106,4 +106,14 @@ warning_lines_are { $plate->serve(\<<'') } [1,5], 'Multi-line include precompile
 'empty'
 %%> &>
 % warn "L5";
+
+warning_lines_are { $plate->serve(\<<'') } [1,5,8], 'Within multi-line expression';
+% warn "L1";
+<%
+# %>
+<%
+warn "L5";
+''
+%>
+% warn "L8";
 

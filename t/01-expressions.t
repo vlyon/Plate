@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 24;
+use Test::More tests => 27;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -66,6 +66,18 @@ is $plate->serve(\'<%join ",",@_|%><%% "" %%>', 1..9),
 is $plate->serve(\"<one>\\\n<two>\n<three>\\\n"),
 "<one><two>\n<three>",
 'Remove escaped newlines';
+
+is $plate->serve(\"<%\n%>hi5"),
+'hi5',
+'Empty expression';
+
+is $plate->serve(\'<% "hi" %><% # comment %>5'),
+'hi5',
+'Comment expression';
+
+is $plate->serve(\"hi<%#\nFirst line.\nSecond line.\n%>5"),
+'hi5',
+'Multi-line comment expression';
 
 $plate->set(vars => {
         '$var' => \'String',
