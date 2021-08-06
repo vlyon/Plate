@@ -43,7 +43,7 @@
          "web" : "https://github.com/vlyon/Plate"
       }
    },
-   "version" : "0.4",
+   "version" : "1.4",
    "x_generated_by_perl" : "v5.28.1",
    "x_serialization_backend" : "JSON::XS version 4.03"
 }

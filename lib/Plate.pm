@@ -1,6 +1,6 @@
 use 5.020;
 use warnings;
-package Plate 0.4;
+package Plate 1.4;
 
 use Carp 'croak';
 use File::Spec;
