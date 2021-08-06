@@ -107,6 +107,17 @@ To explicitly avoid the default filter use the empty string as a filter.
 
 Lines that start with a `%` character are treated as Perl statements.
 
+### Comments
+
+```
+%# Comment line
+<% # inline comment %>
+<%#
+    Multi-line
+    comment
+%>
+```
+
 ### Perl blocks
 
 ```
@@ -216,6 +227,16 @@ Options (with their defaults) are:
 
     Set this to the encoding of your template files.
 
+- `filters => { html => \&_basic_html_filter }`
+
+    A hash of filters to set for use in templates.
+    The key is the name of the filter, and the value is the CODE ref, subroutine name or `undef`.
+    The subroutine will be given one argument (the content to filter) as a string,
+    and must return the filtered string.
+    To remove a filter pass `undef` as it's value.
+
+    To remove all filters pass `undef` instead of a HASH ref.
+
 - `keep_undef => undef`
 
     If set to a false value (the default),
@@ -252,6 +273,17 @@ Options (with their defaults) are:
 - `umask => 077`
 
     The `umask` used when creating cache files and directories.
+
+- `vars => {}`
+
+    A hash of vars to set for use in templates.
+    This will define new local variables to be imported into the templating package when compiling and running templates.
+    If the value is not a reference it will be a constant in the templating package.
+    To remove a var pass `undef` as it's value.
+
+    To remove all vars pass `undef` instead of a HASH ref.
+
+    All templates will have access to these variables, subroutines and constants even under `use strict`.
 
 ## serve
 
@@ -290,32 +322,6 @@ Used from within a template to return the content passed to that template.
 ```
 
 Used from within a template to determine if that template was called with content.
-
-## filter
-
-```perl
-$plate->filter($filter_name => sub { ... });
-```
-
-Add a new filter for use in templates.
-The subroutine will be given one argument (the content to filter) as a string,
-and must return the filtered string.
-
-## var
-
-```perl
-$plate->var('$var' => \$var);
-$plate->var('%hash' => \%hash);
-$plate->var('@array' => \@array);
-$plate->var(func => \&func);
-$plate->var(CONST => 123);
-```
-
-Define a new local variable to be imported into the templating package when compiling and running templates.
-If the value is not a reference it will be a constant in the templating package.
-To remove a var pass `undef` as the value.
-
-All templates will have access to these variables, subroutines and constants even under `use strict`.
 
 ## define
 
