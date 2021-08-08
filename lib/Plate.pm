@@ -731,10 +731,12 @@ No attempt will be made to compile the template.
 
 =head2 can_serve
 
-    my $ok = $plate->can_serve($template_name);
+    my $ok = $plate->can_serve($template);
 
-Returns true if a template by that name can be served,
+Returns true if the template can be served (compiles successfully),
 otherwise it sets C<$@> to the reason for failure.
+If C<$template> is a string then it is the name of a template to compile.
+If C<$template> is a SCALAR ref then it is the contents of a template to be compiled.
 
 =cut
 
@@ -745,8 +747,9 @@ sub does_exist {
     exists $_[0]{mem}{$_[1]} or -f($_[0]->_plate_file($_[1]) // $_[0]->_cache_file($_[1]));
 }
 sub can_serve {
-    local $Plate::_s = $_[0];
-    !!eval { _sub $_[1] };
+    local($Plate::_s, @Plate::_c) = $_[0];
+    _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
+    !!eval { ref $_[1] eq 'SCALAR' ? _compile ${$_[1]} : _sub $_[1] };
 }
 
 =head2 set

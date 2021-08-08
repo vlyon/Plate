@@ -357,11 +357,13 @@ No attempt will be made to compile the template.
 ## can\_serve
 
 ```perl
-my $ok = $plate->can_serve($template_name);
+my $ok = $plate->can_serve($template);
 ```
 
-Returns true if a template by that name can be served,
+Returns true if the template can be served (compiles successfully),
 otherwise it sets `$@` to the reason for failure.
+If `$template` is a string then it is the name of a template to compile.
+If `$template` is a SCALAR ref then it is the contents of a template to be compiled.
 
 ## set
 

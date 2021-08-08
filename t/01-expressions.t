@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 27;
+use Test::More tests => 28;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -86,9 +86,12 @@ $plate->set(vars => {
         obj    => \$plate,
         CONST  => 1,
     });
+ok $plate->can_serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %>'),
+'Set & use vars (can_serve)';
+
 is $plate->serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %>'),
 'String Array Hash Plate 1',
-'Set & use vars';
+'Set & use vars (serve)';
 
 $plate->set(package => 'Some::Where');
 is $plate->serve(\'<% $var %> <% $var[0] %> <% $Some::Where::var{a} %> <% Plate::Template::CONST %>'),
