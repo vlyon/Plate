@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 44;
+use Test::More tests => 45;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -121,9 +121,14 @@ is $@, "Can't read .missing.plate: $! at err line 5.\n", 'Expected error';
 ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
 like $@, qr"^No 'filter' filter defined ", 'Expected error';
 
-$plate->set(filters => { html => undef });
+$plate->set(cache_code => 1, filters => { gone => sub {''}, html => undef });
 like eval { $plate->serve(\'<% 1 %>') } // $@,
 qr"^No 'html' filter defined ", 'Invalid auto_filter';
+
+$plate->define(err => '<% 1 |gone %>');
+$plate->set(filters => { gone => undef });
+like eval { $plate->serve('err') } // $@,
+qr"^No 'gone' filter defined ", 'Deleted filter';
 
 $plate->define(err => '<& err &>');
 is eval { $plate->serve_with(\' ', 'err') } // $@,
@@ -156,7 +161,7 @@ qr/^syntax error /m, 'Error parsing cache file';
 
 is delete $$plate{mod}{outer}, undef, "Don't keep stat of faulty cache file";
 
-$plate->set(static => 1);
+$plate->set(cache_code => 0, static => 1);
 like eval { $plate->serve('outer') } // $@,
 qr/^syntax error /m, 'Error parsing cache file (static mode)';
 

@@ -341,7 +341,8 @@ sub _r {
     &{_sub $tmpl};
 }
 sub _f {
-    goto &{$$Plate::_s{filters}{+shift}};
+    my $f = shift;
+    goto &{$$Plate::_s{filters}{$f} // croak "No '$f' filter defined"};
 }
 
 sub _path {
