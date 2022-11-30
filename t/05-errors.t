@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 43;
+use Test::More tests => 45;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -130,6 +130,18 @@ qr"^No 'gone' filter defined ", 'Deleted filter';
 $plate->define(err => '<& err &>');
 is eval { $plate->serve_with(\' ', 'err') } // $@,
 qq'Call depth limit exceeded while calling "err" at err line 1.\n', 'Error on deep recursion';
+
+$plate->set(max_call_depth => 9);
+$plate->define(err => <<'PLATE');
+% if (my $v = shift) {
+<% $v |%><& err, @_ &>
+% }
+PLATE
+is eval { $plate->serve('err', 1..8) } // $@,
+'12345678', 'No error on shallow recursion';
+
+is eval { $plate->serve('err', 1..9) } // $@,
+qq'Call depth limit exceeded while calling "err" at err line 2.\n', 'Error on shallow recursion (set max_call_depth)';
 
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!" if -d 't/tmp_dir';
 $plate->set(path => 't', cache_path => 't/tmp_dir', umask => 027);

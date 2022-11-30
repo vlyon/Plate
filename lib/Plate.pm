@@ -785,68 +785,70 @@ my %sigil = (
     HASH => '%',
 );
 
+eval "sub _set_$_ { \$_[0]{$_} = \$_[1] }" for qw(auto_filter cache_code chomp keep_undef max_call_depth static umask);
+eval "sub _set_$_ { \$_[0]{$_} = \$_[1] // '' }" for qw(cache_suffix init io_layers once suffix);
+sub _set_cache_path {
+    # A relative cache_path must start with "./" to prevent searching @INC when sourcing the file
+    $_[0]{cache_path} = defined $_[1] ? _path $_[1], 1 : $_[1];
+}
+sub _set_encoding {
+    $_[0]->_set_io_layers(length $_[1] ? $_[1] eq 'utf8' ? ':utf8' : ":encoding($_[1])" : '');
+}
+sub _set_filters {
+    $_[1] // return undef %{$_[0]{filters}};
+    ref $_[1] eq 'HASH'
+        or croak "Invalid filters (not a hash reference)";
+
+    while (my($name, $code) = each %{$_[1]}) {
+        $name =~ /^\w+$/
+            or croak "Invalid filter name '$name'";
+        if (defined $code) {
+            ref $code eq 'CODE'
+                or $code = ($code =~ /(.*)::(.*)/
+                ? $1->can($2)
+                : do {
+                    my($i,$p) = 0;
+                    $i++ while __PACKAGE__ eq ($p = caller $i);
+                    $p->can($code)
+                })
+                or croak "Invalid subroutine '$_[1]{$name}' for filter '$name'";
+            $_[0]{filters}{$name} = $code;
+        } else {
+            delete $_[0]{filters}{$name};
+        }
+    }
+}
+sub _set_path {
+    $_[0]{path} = length $_[1] ? _path $_[1] : $_[1];
+}
+sub _set_package {
+    defined $_[1] and $_[1] =~ /^[A-Z_a-z][0-9A-Z_a-z]*(?:::[0-9A-Z_a-z]+)*$/
+        or croak "Invalid package name '".($_[1]  // '')."'";
+    $_[0]{package} = $_[1];
+}
+sub _set_vars {
+    $_[1] // return undef %{$_[0]{vars}};
+    ref $_[1] eq 'HASH'
+        or croak "Invalid vars (not a hash reference)";
+
+    while (my($name, $ref) = each %{$_[1]}) {
+        if (defined $ref) {
+            my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
+            $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
+            $_[0]{vars}{$name} = $ref;
+        } else {
+            delete $_[0]{vars}{$name};
+        }
+    }
+}
+
 sub set {
     my($self, %opt) = @_;
 
     while (my($k, $v) = each %opt) {
-        if ($k eq 'encoding') {
-            $k = 'io_layers';
-            $v = length $v ? $v eq 'utf8' ? ':utf8' : ":encoding($v)" : '';
-        } elsif ($k eq 'path') {
-            $v = _path $v if length $v;
-        } elsif ($k eq 'cache_path') {
-            # A relative cache_path must start with "./" to prevent searching @INC when sourcing the file
-            $v = _path $v, 1 if defined $v;
-        } elsif ($k =~ /^(?:(?:cache_)?suffix|init|io_layers|once)$/) {
-            $v //= '';
-        } elsif ($k eq 'filters') {
-            if (defined $v) {
-                ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
-                while (my($name, $code) = each %$v) {
-                    $name =~ /^\w+$/
-                        or croak "Invalid filter name '$name'";
-                    if (defined $code) {
-                        ref $code eq 'CODE'
-                            or $code = ($code =~ /(.*)::(.*)/
-                            ? $1->can($2)
-                            : do {
-                                my($i,$p) = 0;
-                                $i++ while __PACKAGE__ eq ($p = caller $i);
-                                $p->can($code)
-                            })
-                            or croak "Invalid subroutine '$$v{$name}' for filter '$name'";
-                        $$self{filters}{$name} = $code;
-                    } else {
-                        delete $$self{filters}{$name};
-                    }
-                }
-            } else {
-                undef %{$$self{$k}};
-            }
-            next;
-        } elsif ($k eq 'vars') {
-            if (defined $v) {
-                ref $v eq 'HASH' or croak "Invalid $k (not a hash reference)";
-                while (my($name, $ref) = each %$v) {
-                    if (defined $ref) {
-                        my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
-                        $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
-                        $$self{vars}{$name} = $ref;
-                    } else {
-                        delete $$self{vars}{$name};
-                    }
-                }
-            } else {
-                undef %{$$self{$k}};
-            }
-            next;
-        } elsif ($k eq 'package') {
-            defined $v and $v =~ /^[A-Z_a-z][0-9A-Z_a-z]*(?:::[0-9A-Z_a-z]+)*$/
-                or croak "Invalid package name '".($v // '')."'";
-        } elsif ($k !~ /^(?:auto_filter|cache_code|chomp|keep_undef|max_call_depth|static|umask)$/) {
-            croak "Invalid setting '$k'";
-        }
-        $$self{$k} = $v;
+        my $c = $self->can("_set_$k")
+            or croak "Invalid setting '$k'";
+        $c->($self, $v);
     }
 
     if (defined $$self{path}) {
