@@ -1,6 +1,7 @@
 Revision history for Plate
 
 {{$NEXT}}
+    - Add locally defined filters
 
 1.4       2021-08-08 16:37:30+01:00 Europe/London
     - Improved can_serve, check a template by name or content

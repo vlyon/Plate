@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 45;
+use Test::More tests => 43;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -117,9 +117,6 @@ PLATE
 ok !eval { $plate->serve('err') }, "Can't use precompiled %def blocks during runtime";
 is 0+$!, 2, 'Expected errno';
 is $@, "Can't read .missing.plate: $! at err line 5.\n", 'Expected error';
-
-ok !eval { $plate->define(err => '<& bad |filter &>') }, 'Invalid filter';
-like $@, qr"^No 'filter' filter defined ", 'Expected error';
 
 $plate->set(cache_code => 1, filters => { gone => sub {''}, html => undef });
 like eval { $plate->serve(\'<% 1 %>') } // $@,

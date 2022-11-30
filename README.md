@@ -33,7 +33,7 @@ caching compiled templates,
 variable escaping/filtering,
 localised global variables.
 Templates can also include other templates, with optional content
-and even define or override templates locally.
+and even define or override templates & filters locally.
 
 All templates have strict, warnings, utf8 and Perl 5.20 features enabled.
 
@@ -140,14 +140,6 @@ Newline characters can be escaped with a backslash, Eg:
 
 This will result in the output `abc`, all on one line.
 
-### Content
-
-```
-<& _ &>
-```
-
-A template can be served with content. This markup will insert the content provided, if any.
-
 ### Include other templates
 
 ```
@@ -170,6 +162,14 @@ Plain text, <&| bold &>bold text</&>, plain text.
 
 An included template can have its own content passed in.
 
+### Content
+
+```
+<& _ &>
+```
+
+A template can be served with content. This markup will insert the content provided, if any.
+
 ### Def blocks
 
 ```perl
@@ -181,7 +181,25 @@ Copyright © <% $_[0] %>
 ```
 
 Local templates can be defined in a template.
-They can even override existing templates.
+They will override existing templates until the end of the template or block.
+
+### Filter blocks
+
+```perl
+<%filter one_line>
+<% $_[0] =~ tr/\n/ / |%>
+</%filter>
+
+<%filter bold>
+<b><& _ &></b>
+</%filter>
+
+<% "Single\nLine\nOnly" |one_line |bold %>
+```
+
+Local filters can also be defined in a template.
+They will override existing filters until the end of the template or block.
+The text to be filtered will be passed in as the only argument and also as content.
 
 # SUBROUTINES/METHODS
 

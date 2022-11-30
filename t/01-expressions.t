@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 28;
+use Test::More tests => 30;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -35,6 +35,24 @@ is $plate->serve(\'<% "<html> this & that" |html %>'),
 is $plate->serve(\'<% "<html> this & that" | html | html %>'),
 '&amp;lt;html&amp;gt; this &amp;amp; that',
 'Double filtered expression';
+
+is $plate->serve(\<<''),
+<%filter bold>
+<b><& _ &></b>
+</%filter>
+<% "<html> this & that" |bold %>\
+
+'<b><html> this & that</b>',
+'Custom filtered expression';
+
+is $plate->serve(\<<''),
+<%filter html>
+<% $_[0] =~ y/<>/[]/r |%>
+</%filter>
+<% "<html> this & that" %>\
+
+'[html] this & that',
+'Custom replaced filter';
 
 $plate->set(keep_undef => 1, chomp => undef);
 is $plate->serve(\'<% undef |%>'),
