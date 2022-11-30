@@ -607,7 +607,8 @@ The C<umask> used when creating cache files and directories.
 
 A hash of vars to set for use in templates.
 This will define new local variables to be imported into the templating package when compiling and running templates.
-If the value is not a reference it will be a constant in the templating package.
+Values to be imported must be unblessed references.
+If the value is a blessed object or not a reference it will be imported as a constant into the templating package.
 To remove a var pass C<undef> as it's value.
 
 To remove all vars pass C<undef> instead of a HASH ref.

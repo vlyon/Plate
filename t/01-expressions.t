@@ -103,12 +103,13 @@ $plate->set(vars => {
         '%var' => {a => 'Hash'},
         obj    => \$plate,
         CONST  => 1,
+        OBJECT => $plate,
     });
-ok $plate->can_serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %>'),
+ok $plate->can_serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %> <% OBJECT %>'),
 'Set & use vars (can_serve)';
 
-is $plate->serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %>'),
-'String Array Hash Plate 1',
+is $plate->serve(\'<% $var %> <% "@var" %> <% $var{a} %> <% ref $obj %> <% CONST %> <% OBJECT eq $obj %>'),
+'String Array Hash Plate 1 1',
 'Set & use vars (serve)';
 
 $plate->set(package => 'Some::Where');
