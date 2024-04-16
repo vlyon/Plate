@@ -670,7 +670,7 @@ C<$content> may also be a CODE ref which should return the content directly.
 sub serve { shift->serve_with(undef, @_) }
 sub serve_with {
     local $Plate::_s = shift;
-    my($_c, $tmpl) = (shift // \&_empty, shift);
+    my($_c, $tmpl) = (shift // \&_empty, shift // croak 'Template name is undefined');
     _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
     local @Plate::_c = ref $_c eq 'CODE' ? $_c : ref $_c eq 'SCALAR' ? _compile $$_c : _sub $_c;
 

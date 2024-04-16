@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 45;
+use Test::More tests => 46;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -59,6 +59,9 @@ qr"^Invalid filter name '-test' ", "Can't set invalid filter name";
 
 like eval { $plate->set(filters => { test => 'no::such_sub' }) } // $@,
 qr"^Invalid subroutine 'no::such_sub' for filter 'test' ", "Can't set invalid filter sub";
+
+like eval { $plate->serve(undef) } // $@,
+qr"^Template name is undefined ", "Can't serve undef";
 
 ok !eval { $plate->define(err => <<'PLATE');
 % No opening tag
