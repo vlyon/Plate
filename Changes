@@ -1,5 +1,7 @@
 Revision history for Plate
 
+{{$NEXT}}
+
 1.6       2024-07-02 10:47:39+00:00 UTC
     - New filter method to apply filters manually
     - Make does_exist, can_serve & filter callable inside templates
