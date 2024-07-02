@@ -24,35 +24,35 @@ END {
     rmdir 't/tmp_dir';
 }
 
-like eval { new Plate invalid => 1 } // $@,
+like eval { Plate->new(invalid => 1) } // $@,
 qr"^\QInvalid setting 'invalid' at ", "Can't set invalid settings";
 
-like eval { new Plate cache_path => '/no/such/path/ exists' } // $@,
+like eval { Plate->new(cache_path => '/no/such/path/ exists') } // $@,
 qr"^Can't create cache directory ", "Can't set invalid cache_path";
 
 SKIP: {
     skip 'Test unwriteable cache_path, but / is writeable', 1 if -w '/';
 
-    like eval { new Plate cache_path => '/' } // $@,
+    like eval { Plate->new(cache_path => '/') } // $@,
     qr"^Cache directory / is not writeable", "Can't set unwriteable cache_path";
 }
 
-like eval { new Plate path => '/no/such/path/ exists' } // $@,
+like eval { Plate->new(path => '/no/such/path/ exists') } // $@,
 qr"^Can't set path to ", "Can't set invalid path";
 
-like eval { new Plate filters => 'not a hash' } // $@,
+like eval { Plate->new(filters => 'not a hash') } // $@,
 qr"^\QInvalid filters (not a hash reference) ", "Can't set invalid filters";
 
-like eval { new Plate vars => ['not a hash'] } // $@,
+like eval { Plate->new(vars => ['not a hash']) } // $@,
 qr"^\QInvalid vars (not a hash reference) ", "Can't set invalid vars";
 
-like eval { new Plate package => 'Not:Valid' } // $@,
+like eval { Plate->new(package => 'Not:Valid') } // $@,
 qr"^Invalid package name ", "Can't set invalid package name";
 
-like eval { new Plate package => undef } // $@,
+like eval { Plate->new(package => undef) } // $@,
 qr"^Invalid package name ", "Can't set undefined package name";
 
-my $plate = new Plate cache_code => undef;
+my $plate = Plate->new(cache_code => undef);
 
 like eval { $plate->set(filters => { -test => 'no::such_sub' }) } // $@,
 qr"^Invalid filter name '-test' ", "Can't set invalid filter name";
@@ -217,7 +217,7 @@ SKIP: {
 }
 rmdir 't/tmp_dir' or diag "Can't remove t/tmp_dir: $!";
 
-$plate = new Plate path => 't/data';
+$plate = Plate->new(path => 't/data');
 $plate->define(line_test => "<& utf8 &>\nLine 2\n<& faulty &>\nLine 4\n");
 like eval { $plate->serve('line_test') } // $@,
 $] < 5.025_001

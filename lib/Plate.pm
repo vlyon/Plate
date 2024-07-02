@@ -411,7 +411,7 @@ Here is the code to render this output:
 
     use Plate;
     
-    my $plate = new Plate;
+    my $plate = Plate->new;
     my $output = $plate->serve('job');
 
 =head2 Markup
