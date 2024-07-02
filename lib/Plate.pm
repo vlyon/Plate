@@ -29,8 +29,8 @@ Plate - Fast templating engine with support for embedded Perl
         auto_filter => 'trim',
     );
     
-    $plate->filter(html => \&HTML::Escape::escape_html);
-    $plate->filter(trim => sub { $_[0] =~ s/^\s+|\s+$//gr });
+    $plate->set(filters => { html => \&HTML::Escape::escape_html });
+    $plate->set(filters => { trim => sub { $_[0] =~ s/^\s+|\s+$//gr } });
     
     # Render /path/to/plate/files/hello.plate cached as /tmp/cache/hello.pl
     my $output = $plate->serve('hello');
@@ -742,31 +742,59 @@ sub undefine {
 =head2 does_exist
 
     my $exists = $plate->does_exist($template_name);
+    
+    % my $exists = Plate::does_exist($template_name);
 
 Returns true if a template by that name is cached or exists on the filesystem.
 No attempt will be made to compile the template.
+The second invocation only works from within a template.
 
 =head2 can_serve
 
     my $ok = $plate->can_serve($template);
+    
+    % my $ok = Plate::can_serve($template);
 
 Returns true if the template can be served (compiles successfully),
 otherwise it sets C<$@> to the reason for failure.
 If C<$template> is a string then it is the name of a template to compile.
 If C<$template> is a SCALAR ref then it is the contents of a template to be compiled.
+The second invocation only works from within a template.
 
 =cut
 
 sub does_exist {
-    $_[0]{cache_code} and not $_[0]{static} and exists $_[0]{mod}{$_[1]}
-        and return -f $_[0]->_plate_file($_[1]);
+    my($self, $name) = Scalar::Util::blessed $_[0] ? @_
+    : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
+    $$self{cache_code} and not $$self{static} and exists $$self{mod}{$name}
+        and return -f $self->_plate_file($name);
 
-    exists $_[0]{mem}{$_[1]} or -f($_[0]->_plate_file($_[1]) // $_[0]->_cache_file($_[1]));
+    exists $$self{mem}{$name} or -f($self->_plate_file($name) // $self->_cache_file($name));
 }
 sub can_serve {
-    local($Plate::_s, @Plate::_c) = $_[0];
+    my($self, $name) = Scalar::Util::blessed $_[0] ? @_
+    : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
+    local($Plate::_s, @Plate::_c) = $self;
     _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
-    !!eval { ref $_[1] eq 'SCALAR' ? _compile ${$_[1]} : _sub $_[1] };
+    !!eval { ref $name eq 'SCALAR' ? _compile $$name : _sub $name };
+}
+
+=head2 filter
+
+    $text = $plate->filter($text, 'html', 'bold');
+    
+    % $text = Plate::filter($text, 'trim');
+
+Filters the text using the named filters and returns the result.
+The second invocation only works from within a template.
+
+=cut
+
+sub filter {
+    my($self, $text, @f) = Scalar::Util::blessed $_[0] ? @_
+    : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
+    $text = &{$$self{filters}{$_} // croak "No '$_' filter defined"}($text) for @f;
+    return $text;
 }
 
 =head2 set

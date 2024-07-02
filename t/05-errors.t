@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 46;
+use Test::More tests => 49;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -51,6 +51,15 @@ qr"^Invalid package name ", "Can't set invalid package name";
 
 like eval { Plate->new(package => undef) } // $@,
 qr"^Invalid package name ", "Can't set undefined package name";
+
+like eval { Plate::does_exist('text', 'html') } // $@,
+qr"^Can only be called as a subroutine from within a template", "Can't call Plate::does_exist outside a template";
+
+like eval { Plate::can_serve('text', 'html') } // $@,
+qr"^Can only be called as a subroutine from within a template", "Can't call Plate::can_serve outside a template";
+
+like eval { Plate::filter('text', 'html') } // $@,
+qr"^Can only be called as a subroutine from within a template", "Can't call Plate::filter outside a template";
 
 my $plate = Plate->new(cache_code => undef);
 

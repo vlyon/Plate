@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 49;
+use Test::More tests => 51;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -92,6 +92,11 @@ ok $plate->can_serve('defined'), "Defined plate can be served";
 $plate->undefine('defined');
 ok !$plate->does_exist('defined'), "Undefined plate doesn't exist";
 ok !$plate->can_serve('defined'), "Undefined plate can't be served";
+
+is $plate->serve(\'<% Plate::does_exist("test") ? "Yes" : "No" %>'), 'Yes',
+'Call Plate::does_exist from within a template';
+is $plate->serve(\'<% Plate::can_serve("test") ? "Yes" : "No" %>'), 'Yes',
+'Call Plate::can_serve from within a template';
 
 my $test_warnings = [
     qr"^inner-2-warn at t.data.inner\.plate line 2\.$",

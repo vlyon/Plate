@@ -13,8 +13,8 @@ my $plate = Plate->new(
     auto_filter => 'trim',
 );
 
-$plate->filter(html => \&HTML::Escape::escape_html);
-$plate->filter(trim => sub { $_[0] =~ s/^\s+|\s+$//gr });
+$plate->set(filters => { html => \&HTML::Escape::escape_html });
+$plate->set(filters => { trim => sub { $_[0] =~ s/^\s+|\s+$//gr } });
 
 # Render /path/to/plate/files/hello.plate cached as /tmp/cache/hello.pl
 my $output = $plate->serve('hello');
@@ -25,7 +25,7 @@ print $output;
 
 Plate is a very fast, efficient and full-featured templating engine.
 
-Inspired by [HTML::Mason](https://metacpan.org/pod/HTML::Mason) and [Tenjin](https://metacpan.org/pod/Tenjin), the goal of this templating engine is speed and functionality.
+Inspired by [HTML::Mason](https://metacpan.org/pod/HTML%3A%3AMason) and [Tenjin](https://metacpan.org/pod/Tenjin), the goal of this templating engine is speed and functionality.
 It has no non-core dependencies, is a compact size and supports embedded Perl.
 
 Features include preprocessing templates,
@@ -79,7 +79,7 @@ Here is the code to render this output:
 ```perl
 use Plate;
 
-my $plate = new Plate;
+my $plate = Plate->new;
 my $output = $plate->serve('job');
 ```
 
@@ -368,21 +368,38 @@ or all templates if the name is `undef`.
 
 ```perl
 my $exists = $plate->does_exist($template_name);
+
+% my $exists = Plate::does_exist($template_name);
 ```
 
 Returns true if a template by that name is cached or exists on the filesystem.
 No attempt will be made to compile the template.
+The second invocation only works from within a template.
 
 ## can\_serve
 
 ```perl
 my $ok = $plate->can_serve($template);
+
+% my $ok = Plate::can_serve($template);
 ```
 
 Returns true if the template can be served (compiles successfully),
 otherwise it sets `$@` to the reason for failure.
 If `$template` is a string then it is the name of a template to compile.
 If `$template` is a SCALAR ref then it is the contents of a template to be compiled.
+The second invocation only works from within a template.
+
+## filter
+
+```
+$text = $plate->filter($text, 'html', 'bold');
+
+% $text = Plate::filter($text, 'trim');
+```
+
+Filters the text using the named filters and returns the result.
+The second invocation only works from within a template.
 
 ## set
 
