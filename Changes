@@ -1,6 +1,7 @@
 Revision history for Plate
 
 {{$NEXT}}
+    - Add setting for pragmas used in templates
 
 1.6       2024-07-02 10:47:39+00:00 UTC
     - New filter method to apply filters manually

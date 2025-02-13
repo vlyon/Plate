@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 32;
+use Test::More tests => 33;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -187,5 +187,10 @@ is $plate->serve(\<<''), "Hi5\n\n\nExtra\n\nLines\n\n\n7up", 'Precompiled multi-
 $plate->set(filters => undef);
 like eval { $plate->serve(\'<% 1 |html %>') } // $@,
 qr"^No 'html' filter defined ", 'Remove all filters';
+
+$plate->set(pragmas => ['use 5.036']);
+like eval { $plate->serve(\"% my \$x = bless {}, 'Obj';\n<% \$x isa 'Obj' ? 'Y' : 'N' %>") } // $@,
+$] < 5.036 ? qr/^Perl v5.36.0 required/ : qr/^Y$/,
+'Set pragmas';
 
 ok !$warned, 'No warnings';
