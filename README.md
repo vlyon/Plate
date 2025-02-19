@@ -35,7 +35,7 @@ localised global variables.
 Templates can also include other templates, with optional content
 and even define or override templates & filters locally.
 
-All templates have strict, warnings, utf8 and Perl 5.20 features enabled.
+All templates have strict, warnings and Perl 5.20 features enabled by default.
 
 ## Example
 
@@ -274,6 +274,19 @@ Options (with their defaults) are:
     An empty string (the default) refers to the current directory.
     If set to `undef` then the filesystem will not be searched,
     only cached templates will be served.
+
+- `pragmas => []`
+
+    A list of pragmas to use when compiling templates.
+
+    All templates have strict, warnings and Perl 5.20 features enabled by default,
+    but these defaults can be changed. Eg:
+
+    ```perl
+    my $plate = Plate->new(pragmas => ['use 5.040', 'no strict', 'no warnings']);
+    ```
+
+    This will enable all features from Perl 5.40 and disable strict and warnings.
 
 - `static => undef`
 

@@ -266,7 +266,7 @@ sub _compile {
     $sub = _eval $pl
         or croak $@.'Plate compilation failed';
     # Cache
-    _write $_[2], "use utf8;$pl" if defined $_[2];
+    _write $_[2], $pkg.'use utf8;'.substr($pl, length $pkg) if defined $_[2];
     $$Plate::_s{mod}{$_[3]} = $_[4] if defined $_[4];
     return $sub;
 }
@@ -377,6 +377,8 @@ variable escaping/filtering,
 localised global variables.
 Templates can also include other templates, with optional content
 and even define or override templates & filters locally.
+
+All templates have strict, warnings and Perl 5.20 features enabled by default.
 
 =head2 Example
 
@@ -588,9 +590,16 @@ An empty string (the default) refers to the current directory.
 If set to C<undef> then the filesystem will not be searched,
 only cached templates will be served.
 
-=item C<< pragmas => ['use 5.020', 'use warnings'] >>
+=item C<< pragmas => [] >>
 
 A list of pragmas to use when compiling templates.
+
+All templates have strict, warnings and Perl 5.20 features enabled by default,
+but these defaults can be changed. Eg:
+
+    my $plate = Plate->new(pragmas => ['use 5.040', 'no strict', 'no warnings']);
+
+This will enable all features from Perl 5.40 and disable strict and warnings.
 
 =item C<< static => undef >>
 
@@ -644,7 +653,7 @@ sub new {
         once => '',
         package => 'Plate::Template',
         path => '',
-        pragmas => ['use 5.020', 'use warnings'],
+        pragmas => [],
         static => undef,
         suffix => '.plate',
         umask => 077,

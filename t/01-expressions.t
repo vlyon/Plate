@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 33;
+use Test::More tests => 34;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -188,9 +188,16 @@ $plate->set(filters => undef);
 like eval { $plate->serve(\'<% 1 |html %>') } // $@,
 qr"^No 'html' filter defined ", 'Remove all filters';
 
-$plate->set(pragmas => ['use 5.036']);
-like eval { $plate->serve(\"% my \$x = bless {}, 'Obj';\n<% \$x isa 'Obj' ? 'Y' : 'N' %>") } // $@,
-$] < 5.036 ? qr/^Perl v5.36.0 required/ : qr/^Y$/,
-'Set pragmas';
+$plate->set(pragmas => ['no strict']);
+is $plate->serve(\<<''), 'No strict', 'No strict';
+% $undeclared_var = "No";
+<% $undeclared_var %> strict
+
+SKIP: {
+    skip 'Test pragma "use 5.036"', 1 if $] < 5.036;
+
+    $plate->set(pragmas => ['use 5.036']);
+    is eval { $plate->serve(\"% my \$x = bless {}, 'Obj';\n<% \$x isa 'Obj' ? 'Y' : 'N' %>") } // $@, 'Y', 'Use 5.036';
+}
 
 ok !$warned, 'No warnings';
