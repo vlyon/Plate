@@ -109,8 +109,8 @@ warning_lines_are { $plate->serve(\<<'') } [1,5], 'Multi-line include precompile
 
 warning_lines_are { $plate->serve(\<<'') } [1,5,8], 'Within multi-line expression';
 % warn "L1";
-<%
-# %>
+<% # multi-line
+comment %>
 <%
 warn "L5";
 ''

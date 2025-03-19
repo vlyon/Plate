@@ -42,7 +42,7 @@ my $re_pre = qr'(.*?)(?:
     ^%%\h*(\V*?)\h*(?:\R|\z)|
     ^<%%(perl)>(?:\R|\z)(?:(.*?)^</%%\g-2>(?:\R|\z))?|
     ^<%%(def|filter)\h+([\w/\.-]+)>(?:\R|\z)|
-    <%%(\s*(?:\#.+?)?)%%>|
+    <%%(\h*(?:\#.+?)?)%%>|
     <%%\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?%%>|
     <&&(\|)?\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?&&>|
     </(%%def|%%filter|%%perl)>(?:\R|\z)|
@@ -52,7 +52,7 @@ my $re_run = qr'(.*?)(?:
     ^%\h*(\V*?)\h*(?:\R|\z)|
     ^<%(perl)>(?:\R|\z)(?:(.*?)^</%\g-2>(?:\R|\z))?|
     ^<%(def|filter)\h+([\w/\.-]+)>(?:\R|\z)|
-    <%(\s*(?:\#.+?)?)%>|
+    <%(\h*(?:\#.+?)?)%>|
     <%\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?%>|
     <&(\|)?\s*(.+?)\s*(?:\|\h*(|\w+(?:\s*\|\h*\w+)*)\s*)?&>|
     </(%def|%filter|%perl)>(?:\R|\z)|
@@ -252,9 +252,9 @@ sub _compile {
         $line = '';
     }
     local @Plate::_l;
+    my $pkg = _pkg;
     # Precompile
     $pl = _parse $pl, $re_pre, $file, '';
-    my $pkg = _pkg;
     $pl = "${pkg}sub{$line$pl}";
     $sub = _eval $pl
         or croak $@.'Plate precompilation failed';
