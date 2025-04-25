@@ -93,7 +93,7 @@ is $plate->serve(\'<% "hi" %><% # comment %>5'),
 'hi5',
 'Comment expression';
 
-is $plate->serve(\"hi<%#\nFirst line.\nSecond line.\n%>5"),
+is $plate->serve(\"<% \t # \n Multi-line comment \n %>hi<%#\nFirst line.\nSecond line.\n%><%\n#comment inside an expression\n5\n%>"),
 'hi5',
 'Multi-line comment expression';
 
