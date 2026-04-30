@@ -77,14 +77,14 @@ $plate->set(init => q{
     Plate::_local_args(__PACKAGE__, shift) if @_;
 }, once => q{
     no strict 'vars';
-}, keep_undef => 1);
+});
 
 $plate->define(empty => '');
-is $plate->serve(\<<'', { empty => '', '@empty' => [''] }),
+is $plate->serve(\<<'', { empty => '', '@empty' => [] }),
 %%# Empty
 <%% '' %%>\
 <% $empty %>\
-<% @empty %>\
+<% @empty || '' %>\
 <&& empty &&>\
 %%# Empty
 

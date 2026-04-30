@@ -1,7 +1,7 @@
 #!perl -T
 use 5.020;
 use warnings;
-use Test::More tests => 34;
+use Test::More tests => 35;
 
 BEGIN {
     if ($ENV{AUTHOR_TESTING}) {
@@ -54,15 +54,13 @@ is $plate->serve(\<<''),
 '[html] this & that',
 'Custom replaced filter';
 
-$plate->set(keep_undef => 1, chomp => undef);
-is $plate->serve(\'<% undef |%>'),
-undef,
-'Undefined expression is kept';
-
-$plate->set(keep_undef => undef, chomp => 1);
 is $plate->serve(\'<% undef |html %>'),
 '',
 'Undefined expression is coerced to ""';
+
+is $plate->serve(\'<% my @var = 7..9; @var |%>'),
+'3',
+'Expressions are code blocks evaluated in scalar context';
 
 is $plate->serve(\<<''),
 <%
@@ -147,6 +145,11 @@ $plate->set(filters => { lower => sub { lcfirst $_[0] } });
 is $plate->serve(\'<% "Hello World" |lower %>'),
 'hello World',
 'Replace a filter';
+
+$plate->set(filters => { null => sub { defined $_[0] ? 'defined' : 'undef' } });
+is $plate->serve(\'<% undef |null %> <% 567 |null %>'),
+'undef defined',
+'Undefined expression is passed unchanged to the filter';
 
 is $plate->filter('Hello World', 'upper', 'lower'),
 'hELLO WORLD',

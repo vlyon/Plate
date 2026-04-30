@@ -81,13 +81,10 @@ sub _parse_defn {
 }
 sub _parse_fltr {
     my $expr = $_[0];
-    $expr .= "//''" unless $$Plate::_s{keep_undef};
     if (length $_[1]) {
         $expr = "Plate::_f($_=>$expr)" for split /\s*\|\s*/, $_[1];
-    } elsif (not $$Plate::_s{keep_undef}) {
-        $expr = "($expr)";
     }
-    $expr;
+    "($expr//'')";
 }
 sub _parse {
     my @expr;
@@ -117,7 +114,7 @@ sub _parse {
         }
 
         if (!$pre and @Plate::_l and $Plate::_l[0] <= $+[1]) {
-            my($pos, $line) = splice @Plate::_l, 0, 2;
+            my ($pos, $line) = splice @Plate::_l, 0, 2;
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[1];
             my $rem = $+[1] - $pos;
             $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
@@ -163,13 +160,13 @@ sub _parse {
             my $nl2 = "\n" x substr($_[0], $+[8], $+[0] - $+[8]) =~ tr/\n//;
             $expr2stmt->(1) if $fix_line_num;
             $fix_line_num = push @expr,
-            _parse_fltr "do{$nl1$8}$nl2", $9 // $$Plate::_s{auto_filter};
+            _parse_fltr "scalar(do{$nl1$8})$nl2", $9 // $$Plate::_s{auto_filter};
             $expr2stmt->() if $pre;
 
         } elsif (defined $11) {
             # <& ... &> or <&| ... &>
             my $nl = "\n" x (substr($_[0], $+[1], $+[0] - $+[1]) =~ tr/\n// - $11 =~ tr/\n//);
-            my($tmpl, $args) = do { $11 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/s };
+            my ($tmpl, $args) = do { $11 =~ /^([\w\/\.-]+)\s*(?:,\s*(.*))?$/s };
             $expr2stmt->(!$pre) if $pre or $fix_line_num;
             if (defined $tmpl) {
                 if ($tmpl eq '_') {
@@ -214,7 +211,7 @@ sub _parse {
         }
 
         if (!$pre and @Plate::_l and $Plate::_l[0] <= $+[0]) {
-            my($pos, $line) = splice @Plate::_l, 0, 2;
+            my ($pos, $line) = splice @Plate::_l, 0, 2;
             ($pos, $line) = splice @Plate::_l, 0, 2 while @Plate::_l and $Plate::_l[0] <= $+[0];
             my $rem = $+[0] - $pos;
             $line += substr($_[0], $pos, $rem) =~ tr/\n// if $rem;
@@ -243,8 +240,8 @@ sub _eval {
     eval $_[0];
 }
 sub _compile {
-    my($pl, $file) = @_;
-    my($line, $sub);
+    my ($pl, $file) = @_;
+    my ($line, $sub);
     if (length $file) {
         $line = "\n#line 1 $_[1]\n";
     } else {
@@ -271,7 +268,7 @@ sub _compile {
     return $sub;
 }
 sub _make_cache_dir {
-    my($dir, @mkdir) = $_[1];
+    my ($dir, @mkdir) = $_[1];
     unshift @mkdir, $_[0]{cache_path}.$dir until $dir !~ s|/[^/]*$|| or -d $_[0]{cache_path}.$dir;
     return unless @mkdir;
     my $umask = umask $_[0]{umask};
@@ -337,7 +334,7 @@ sub _r {
         }
     }
     if (@Plate::_c >= $$Plate::_s{max_call_depth}) {
-        my($f, $l) = (caller 0)[1, 2];
+        my ($f, $l) = (caller 0)[1, 2];
         die "Call depth limit exceeded while calling \"$tmpl\" at $f line $l.\n";
     }
     local @Plate::_c = @Plate::_c;
@@ -384,7 +381,7 @@ All templates have strict, warnings and Perl 5.20 features enabled by default.
 
 Here is an example template for a letter stored in the file: C<letter.plate>
 
-    % my($title, $surname) = @_;
+    % my ($title, $surname) = @_;
     Dear <% $title %> <% $surname %>,
     
     <& _ &>
@@ -430,6 +427,10 @@ Variables are interpolated into the output and optionally filtered (escaped).
 Filters are listed in the order to be applied preceded by a C<|> character.
 If no filter is given as in the first example, then the default filter is applied.
 To explicitly avoid the default filter use the empty string as a filter.
+
+These expressions are evaluated as code blocks in scalar context.
+
+    <% my $user = current_user(); $user ? "User $user" : "Nobody" %>
 
 =head3 Statements
 
@@ -570,11 +571,6 @@ To remove a filter pass C<undef> as it's value.
 
 To remove all filters pass C<undef> instead of a HASH ref.
 
-=item C<< keep_undef => undef >>
-
-If set to a false value (the default),
-then variables and calls that return C<undef> are converted to an empty string.
-
 =item C<< max_call_depth => 99 >>
 
 This sets the maximum call depth to prevent infinite recursion.
@@ -647,7 +643,6 @@ sub new {
         },
         init => '',
         io_layers => ':encoding(UTF-8)',
-        keep_undef => undef,
         max_call_depth => 99,
         mem => {},
         once => '',
@@ -686,7 +681,7 @@ C<$content> may also be a CODE ref which should return the content directly.
 sub serve { shift->serve_with(undef, @_) }
 sub serve_with {
     local $Plate::_s = shift;
-    my($_c, $tmpl) = (shift // \&_empty, shift // croak 'Template name is undefined');
+    my ($_c, $tmpl) = (shift // \&_empty, shift // croak 'Template name is undefined');
     _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
     local @Plate::_c = ref $_c eq 'CODE' ? $_c : ref $_c eq 'SCALAR' ? _compile $$_c : _sub $_c;
 
@@ -780,7 +775,7 @@ The second invocation only works from within a template.
 =cut
 
 sub does_exist {
-    my($self, $name) = Scalar::Util::blessed $_[0] ? @_
+    my ($self, $name) = Scalar::Util::blessed $_[0] ? @_
     : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
     $$self{cache_code} and not $$self{static} and exists $$self{mod}{$name}
         and return -f $self->_plate_file($name);
@@ -788,7 +783,7 @@ sub does_exist {
     exists $$self{mem}{$name} or -f($self->_plate_file($name) // $self->_cache_file($name));
 }
 sub can_serve {
-    my($self, $name) = Scalar::Util::blessed $_[0] ? @_
+    my ($self, $name) = Scalar::Util::blessed $_[0] ? @_
     : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
     local($Plate::_s, @Plate::_c) = $self;
     _local_vars $$Plate::_s{package}, $$Plate::_s{vars};
@@ -807,7 +802,7 @@ The second invocation only works from within a template.
 =cut
 
 sub filter {
-    my($self, $text, @f) = Scalar::Util::blessed $_[0] ? @_
+    my ($self, $text, @f) = Scalar::Util::blessed $_[0] ? @_
     : ($Plate::_s // croak('Can only be called as a subroutine from within a template'), @_);
     $text = &{$$self{filters}{$_} // croak "No '$_' filter defined"}($text) for @f;
     return $text;
@@ -829,7 +824,7 @@ my %sigil = (
     HASH => '%',
 );
 
-eval "sub _set_$_ { \$_[0]{$_} = \$_[1] }" for qw(auto_filter cache_code chomp keep_undef max_call_depth static umask);
+eval "sub _set_$_ { \$_[0]{$_} = \$_[1] }" for qw(auto_filter cache_code chomp max_call_depth static umask);
 eval "sub _set_$_ { \$_[0]{$_} = \$_[1] // '' }" for qw(cache_suffix init io_layers once suffix);
 sub _set_cache_path {
     # A relative cache_path must start with "./" to prevent searching @INC when sourcing the file
@@ -843,7 +838,7 @@ sub _set_filters {
     ref $_[1] eq 'HASH'
         or croak "Invalid filters (not a hash reference)";
 
-    while (my($name, $code) = each %{$_[1]}) {
+    while (my ($name, $code) = each %{$_[1]}) {
         $name =~ /^\w+$/
             or croak "Invalid filter name '$name'";
         if (defined $code) {
@@ -851,7 +846,7 @@ sub _set_filters {
                 or $code = ($code =~ /(.*)::(.*)/
                 ? $1->can($2)
                 : do {
-                    my($i,$p) = 0;
+                    my ($i, $p) = 0;
                     $i++ while __PACKAGE__ eq ($p = caller $i);
                     $p->can($code)
                 })
@@ -880,7 +875,7 @@ sub _set_vars {
     ref $_[1] eq 'HASH'
         or croak "Invalid vars (not a hash reference)";
 
-    while (my($name, $ref) = each %{$_[1]}) {
+    while (my ($name, $ref) = each %{$_[1]}) {
         if (defined $ref) {
             my $sigil = $sigil{Scalar::Util::reftype $ref // 'CODE'} // '$';
             $name =~ s/^\Q$sigil\E?/$sigil ne '&' && $sigil/e;
@@ -892,9 +887,9 @@ sub _set_vars {
 }
 
 sub set {
-    my($self, %opt) = @_;
+    my ($self, %opt) = @_;
 
-    while (my($k, $v) = each %opt) {
+    while (my ($k, $v) = each %opt) {
         my $c = $self->can("_set_$k")
             or croak "Invalid setting '$k'";
         $c->($self, $v);
