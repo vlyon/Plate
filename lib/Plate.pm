@@ -586,16 +586,17 @@ An empty string (the default) refers to the current directory.
 If set to C<undef> then the filesystem will not be searched,
 only cached templates will be served.
 
-=item C<< pragmas => [] >>
+=item C<< pragmas => ["use $^V"] >>
 
 A list of pragmas to use when compiling templates.
 
-All templates have strict, warnings and Perl 5.20 features enabled by default,
+All templates have strict and warnings enabled automatically.
+The default setting also enables the current Perl's default features and builtins,
 but these defaults can be changed. Eg:
 
     my $plate = Plate->new(pragmas => ['use 5.040', 'no strict', 'no warnings']);
 
-This will enable all features from Perl 5.40 and disable strict and warnings.
+This will enable only default features and builtins from Perl 5.40 and disable strict and warnings.
 
 =item C<< static => undef >>
 
@@ -648,7 +649,7 @@ sub new {
         once => '',
         package => 'Plate::Template',
         path => '',
-        pragmas => [],
+        pragmas => ["use $^V"],
         static => undef,
         suffix => '.plate',
         umask => 077,
